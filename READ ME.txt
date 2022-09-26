@@ -1,0 +1,6 @@
+This is a (near) 1 to 1 copy of the framework used to create a graphics application in 3D Graphics Programming.
+
+This framework is intended to help start you with your application.
+You should port any old code of previous knowledege from other projects into this version of the framework.
+
+Please "Run" the framework before adding any code to ensure it compiles as expected, if you encounter any issues please contact your module tutor.
