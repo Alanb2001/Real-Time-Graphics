@@ -28,7 +28,7 @@ void Renderer::DefineGUI()
 	// Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 	{
-		ImGui::Begin("3GP");                    // Create a window called "3GP" and append into it.
+		ImGui::Begin("Real-Time Graphics");                    // Create a window called "3GP" and append into it.
 
 		ImGui::Text("Visibility.");             // Display some text (you can use a format strings too)	
 
@@ -38,6 +38,8 @@ void Renderer::DefineGUI()
 
 		ImGui::End();
 	}
+
+	Helpers::CheckForGLError();
 }
 
 void Renderer::CreateTerrain(int size)
@@ -248,6 +250,7 @@ void Renderer::CreateTerrain(int size)
 
 	m_Models.push_back(terrain);
 
+	Helpers::CheckForGLError();
 }
 
 // Loads, compiles and links the shaders and creates a program object to host them
@@ -297,14 +300,22 @@ bool Renderer::InitialiseGeometry()
 	Model jeep("Data\\Models\\Jeep\\jeep.obj", "Data\\Models\\Jeep\\jeep_army.jpg");
 	Model mummy("Data\\Models\\Mummy\\mummy.x", "Data\\Models\\Mummy\\mummy.bmp");
 	Model apple("Data\\Models\\Apple\\apple.obj", "Data\\Models\\Apple\\2.jpg");
+	Model mummy2("Data\\Models\\Mummy\\mummy.x", "Data\\Models\\Spider\\circut color.bmp");
+	Model bones("Data\\Models\\Bones\\bones_idle.x", "Data\\Models\\Bones\\bones.BMP");
 
 	jeep.m_ModelName = "Jeep";
 	mummy.m_ModelName = "Mummy";
 	apple.m_ModelName = "Apple";
+	mummy2.m_ModelName = "Mummy2";
+	bones.m_ModelName = "Bones";
 
 	m_Models.push_back(jeep);
-	m_Models.push_back(apple);
 	m_Models.push_back(mummy);
+	m_Models.push_back(apple);
+	m_Models.push_back(mummy2);
+	m_Models.push_back(bones);
+
+	Helpers::CheckForGLError();
 
 	return true;
 }

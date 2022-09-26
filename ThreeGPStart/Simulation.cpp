@@ -30,27 +30,27 @@ bool Simulation::HandleInput(GLFWwindow* window)
 	// if (glfwGetKey(window, GLFW_KEY_W)==GLFW_PRESS) // means W key pressed
 	if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
 	{
-		JeepTransform = glm::translate(JeepTransform, glm::vec3(-0.02, 0, 0));
+		jeepTransform = glm::translate(jeepTransform, glm::vec3(-0.02, 0, 0));
 	}
 	else if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS)
 	{
-		JeepTransform = glm::translate(JeepTransform, glm::vec3(0.02, 0, 0));
+		jeepTransform = glm::translate(jeepTransform, glm::vec3(0.02, 0, 0));
 	}
 	else if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
 	{
-		JeepTransform = glm::translate(JeepTransform, glm::vec3(0, 0.02, 0));
+		jeepTransform = glm::translate(jeepTransform, glm::vec3(0, 0.02, 0));
 	}
 	else if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
 	{
-		JeepTransform = glm::translate(JeepTransform, glm::vec3(0, -0.02, 0));
+		jeepTransform = glm::translate(jeepTransform, glm::vec3(0, -0.02, 0));
 	}
 	else if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
 	{
-		JeepTransform = glm::translate(JeepTransform, glm::vec3(0, 0, 0.02));
+		jeepTransform = glm::translate(jeepTransform, glm::vec3(0, 0, 0.02));
 	}
 	else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
 	{
-		JeepTransform = glm::translate(JeepTransform, glm::vec3(0, 0, -0.02));
+		jeepTransform = glm::translate(jeepTransform, glm::vec3(0, 0, -0.02));
 	}
 
 	// You can get mouse button input, returned state is GLFW_PRESS or GLFW_RELEASE
@@ -92,7 +92,7 @@ bool Simulation::Update(GLFWwindow* window)
 		angle = 0;
 	}
 
-	m_renderer->UpdateModelTransform(m_renderer->GetModelIndex("Jeep"), JeepTransform);
+	m_renderer->UpdateModelTransform(m_renderer->GetModelIndex("Jeep"), jeepTransform);
 
 	appleTransform = glm::mat4(1);
 
@@ -109,6 +109,22 @@ bool Simulation::Update(GLFWwindow* window)
 	mummyTransform = glm::scale(mummyTransform, glm::vec3{ 30, 30, 30 });
 
 	m_renderer->UpdateModelTransform(m_renderer->GetModelIndex("Mummy"), mummyTransform);
+
+	mummy2Transform = glm::mat4(1);
+
+	// Rotates around x axis		
+	mummy2Transform = glm::translate(mummy2Transform, glm::vec3{ 0, 400, 300 });
+	mummy2Transform = glm::scale(mummy2Transform, glm::vec3{ 30, 30, 30 });
+
+	m_renderer->UpdateModelTransform(m_renderer->GetModelIndex("Mummy2"), mummy2Transform);
+
+	bonesTransform = glm::mat4(1);
+
+	// Rotates around x axis		
+	bonesTransform = glm::translate(bonesTransform, glm::vec3{ 0, 400, 600 });
+	bonesTransform = glm::scale(bonesTransform, glm::vec3{ 30, 30, 30 });
+
+	m_renderer->UpdateModelTransform(m_renderer->GetModelIndex("Bones"), bonesTransform);
 
 	// The camera needs updating to handle user input internally
 	m_camera->Update(window, deltaTime);

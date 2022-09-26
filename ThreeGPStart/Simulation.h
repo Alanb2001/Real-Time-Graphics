@@ -20,7 +20,11 @@ private:
 
 	glm::mat4 appleTransform = glm::mat4(1);
 
-	glm::mat4 JeepTransform = glm::mat4(1);
+	glm::mat4 jeepTransform = glm::mat4(1);
+
+	glm::mat4 mummy2Transform = glm::mat4(1);
+
+	glm::mat4 bonesTransform = glm::mat4(1);
 
 	// Remember last update time so we can calculate delta time
 	float m_lastTime{ 0 };
