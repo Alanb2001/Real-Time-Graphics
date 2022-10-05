@@ -9,15 +9,14 @@ vec3 light_position;
 in vec3 varying_position; 
 in vec3 varying_normal;
 in vec2 varying_coord;
-in float varying_gouraud;
 
 out vec4 fragment_colour;
 
 void main(void)
 {	
-	light_position.y = 500;
+	light_position = vec3(500, 500, 0);
 
-	vec3 light_colour = vec3(1, 1, 1);
+	light_colour = vec3(1, 1, 1);
 
 	vec3 light_ambient_colour = vec3(0.5);
 	float light_range = 3000;
