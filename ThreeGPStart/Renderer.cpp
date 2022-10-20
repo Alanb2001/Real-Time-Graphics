@@ -283,6 +283,33 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_program))
 		return false;
 
+	// Creates a new program (returns a unqiue id)
+	m_lightProgram = glCreateProgram();
+
+	// Loads and creates vertex and fragment shaders
+	GLuint lights_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/lights_VS.glsl") };
+	GLuint lights_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/lights_FS.glsl") };
+	if (lights_VS == 0 || lights_FS == 0)
+		return false;
+
+	// Attach the vertex shader to this program (copies it)
+	glAttachShader(m_lightProgram, lights_VS);
+
+	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
+	// Not needed if you use (location=0) in the vertex shader itself
+	//glBindAttribLocation(m_program, 0, "vertex_position");
+
+	// Attach the fragment shader (copies it)
+	glAttachShader(m_lightProgram, lights_FS);
+
+	// Done with the originals of these as we have made copies
+	glDeleteShader(lights_VS);
+	glDeleteShader(lights_FS);
+
+	// Link the shaders, checking for errors
+	if (!Helpers::LinkProgramShaders(m_lightProgram))
+		return false;
+
 	return !Helpers::CheckForGLError();
 }
 
@@ -345,13 +372,14 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glm::mat4 view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
 	glm::mat4 combined_xform = projection_xform * view_xform;
 
-	GLuint combined_xform_id = glGetUniformLocation(m_program, "combined_xform");
+	GLuint combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
 
 	glUseProgram(m_program);
+	glUseProgram(m_lightProgram);
 
 	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
 
-	GLuint camera_position_id = glGetUniformLocation(m_program, "camera_position");
+	GLuint camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
 	glm::vec3 camera_position = camera.GetPosition();
 	glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
 
@@ -359,7 +387,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	{
 		glm::mat4 model_xform = glm::mat4(1);
 		model_xform *= mod.GetModelTransform();
-		GLuint model_xform_id = glGetUniformLocation(m_program, "model_xform");
+		GLuint model_xform_id = glGetUniformLocation(m_lightProgram, "model_xform");
 		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
 	
 		for (Mesh& mesh : mod.m_Meshs)
@@ -368,7 +396,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 			{
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, mesh.tex);
-				glUniform1i(glGetUniformLocation(m_program, "sampler_tex"), 0);
+				glUniform1i(glGetUniformLocation(m_lightProgram, "sampler_tex"), 0);
 			}
 			else
 			{

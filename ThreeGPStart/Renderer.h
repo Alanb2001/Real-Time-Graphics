@@ -13,6 +13,8 @@ private:
 	// Program object - to host shaders
 	GLuint m_program{ 0 };
 
+	GLuint m_lightProgram{ 0 };
+
 	std::vector<Model> m_Models;
 
 	bool m_wireframe{ false };
