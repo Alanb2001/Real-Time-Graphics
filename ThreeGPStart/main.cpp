@@ -35,7 +35,7 @@ int main()
 	{
 		return -1;
 	}
-
+	
 	// Create an instance of the simulation class and initialise it
 	// If it could not load, exit gracefully
 	Simulation simulation;	

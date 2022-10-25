@@ -7,6 +7,24 @@
 
 class Model;
 
+struct PerFrameUniforms
+{
+	glm::vec3 light_position;
+	float light_range;
+	glm::vec3 light_direction;
+	glm::vec3 cam_pos;
+	glm::vec3 ambeint_light;
+};
+
+struct PerModelUniforms
+{
+	glm::mat4 projection_xform;
+	glm::mat4 model_xform;
+	glm::mat4 view_xform;
+	glm::vec3 material_colour;
+	float pad1_;
+};
+
 class Renderer
 {
 private:
@@ -16,6 +34,9 @@ private:
 	GLuint m_lightProgram{ 0 };
 
 	std::vector<Model> m_Models;
+
+	GLuint per_frame_ubo_;
+	GLuint per_model_ubo_;
 
 	bool m_wireframe{ false };
 
