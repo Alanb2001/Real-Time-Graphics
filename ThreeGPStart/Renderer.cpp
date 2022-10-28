@@ -256,13 +256,13 @@ void Renderer::CreateTerrain(int size)
 // Loads, compiles and links the shaders and creates a program object to host them
 bool Renderer::CreateProgram()
 {
-	//glGenBuffers(1, &per_frame_ubo_);
-	//glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
-	//glBufferData(GL_UNIFORM_BUFFER, sizeof(PerFrameUniforms), nullptr, GL_STREAM_DRAW);
+	glGenBuffers(1, &per_frame_ubo_);
+	glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(PerFrameUniforms), nullptr, GL_STREAM_DRAW);
 
-	//glGenBuffers(1, &per_model_ubo_);
-	//glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
-	//glBufferData(GL_UNIFORM_BUFFER, sizeof(PerModelUniforms), nullptr, GL_STREAM_DRAW);
+	glGenBuffers(1, &per_model_ubo_);
+	glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(PerModelUniforms), nullptr, GL_STREAM_DRAW);
 
 	// Creates a new program (returns a unqiue id)
 	m_program = glCreateProgram();
@@ -291,11 +291,11 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_program))
 		return false;
 
-	//glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
-	//glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerFrameUniforms"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
+	glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerFrameUniforms"), 0);
 
-	//glBindBufferBase(GL_UNIFORM_BUFFER, 1, per_model_ubo_);
-	//glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerModelUniforms"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_model_ubo_);
+	glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerModelUniforms"), 0);
 
 	// Creates a new program (returns a unqiue id)
 	m_lightProgram = glCreateProgram();
@@ -324,11 +324,11 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_lightProgram))
 		return false;
 
-	//glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
-	//glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerFrameUniforms"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
+	glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerFrameUniforms"), 0);
 
-	//glBindBufferBase(GL_UNIFORM_BUFFER, 1, per_model_ubo_);
-	//glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerModelUniforms"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_model_ubo_);
+	glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerModelUniforms"), 0);
 
 	return !Helpers::CheckForGLError();
 }
@@ -383,23 +383,24 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glClearColor(0.0f, 0.0f, 0.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//PerFrameUniforms per_frame_uniforms;
-	//PerModelUniforms per_model_uniforms;
-	//Mesh mesh;
+	PerFrameUniforms per_frame_uniforms;
+	PerModelUniforms per_model_uniforms;
+	Mesh mesh;
 
 	GLint viewportSize[4];
 	glGetIntegerv(GL_VIEWPORT, viewportSize);
-	//per_model_uniforms.view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
-	//per_model_uniforms.projection_xform = glm::perspective(glm::radians(45.0f), viewportSize[2] / (float)viewportSize[3], 1.0f, 6000.0f);
 	const float aspect_ratio = viewportSize[2] / (float)viewportSize[3];
-	glm::mat4 projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
+	per_model_uniforms.view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
+	per_model_uniforms.projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
 
-	glm::mat4 view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
-	glm::mat4 combined_xform = projection_xform * view_xform;
+	//glm::mat4 projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
 
-	GLuint combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
+	//glm::mat4 view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
+	//glm::mat4 combined_xform = projection_xform * view_xform;
 
-	//glUseProgram(m_program);
+	//GLuint combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
+
+	glUseProgram(m_program);
 	// Configure pipeline settings
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -407,54 +408,54 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDepthFunc(GL_LEQUAL);
 	glDisable(GL_BLEND);
 
-	//per_frame_uniforms.cam_pos = glm::vec3(camera.GetPosition(), camera.GetPosition(), camera.GetPosition());
-	//per_frame_uniforms.ambeint_light = glm::vec3(0.0, 0.0, 0.0);
+	per_frame_uniforms.cam_pos = glm::vec3(camera.GetPosition());
+	per_frame_uniforms.ambeint_light = glm::vec3(0.0, 0.0, 0.0);
 
-	//for (int j = 0; j < m_Models.size(); j++)
-	//{
-	//	//per_model_uniforms.model_xform = glm::mat4(j);
+	for (int j = 0; j < m_Models.size(); j++)
+	{
+		//per_model_uniforms.model_xform = glm::mat4(j);
 
-	//	glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
-	//	glBufferData(GL_UNIFORM_BUFFER, sizeof(per_frame_uniforms), &per_frame_uniforms, GL_STREAM_DRAW);
-	//	glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
-	//	glBufferData(GL_UNIFORM_BUFFER, sizeof(per_model_uniforms), &per_model_uniforms, GL_STREAM_DRAW);
+		glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(per_frame_uniforms), &per_frame_uniforms, GL_STREAM_DRAW);
+		glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(per_model_uniforms), &per_model_uniforms, GL_STREAM_DRAW);
 
-	//	glBindVertexArray(mesh.VAO);
-	//	glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-	//}
+		glBindVertexArray(mesh.VAO);
+		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+	}
 
 	glUseProgram(m_lightProgram);
 
-	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
 
-	GLuint camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
-	glm::vec3 camera_position = camera.GetPosition();
-	glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
+	//GLuint camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
+	/*glm::vec3 camera_position = camera.GetPosition();*/
+	//glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
 
-	for (Model& mod : m_Models)
-	{
-		glm::mat4 model_xform = glm::mat4(1);
-		model_xform *= mod.GetModelTransform();
-		GLuint model_xform_id = glGetUniformLocation(m_lightProgram, "model_xform");
-		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-	
-		for (Mesh& mesh : mod.m_Meshs)
-		{
-			if (mesh.tex)
-			{
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, mesh.tex);
-				glUniform1i(glGetUniformLocation(m_lightProgram, "sampler_tex"), 0);
-			}
-			else
-			{
-				glBindTexture(GL_TEXTURE_2D, 0);
-			}
-	
-			glBindVertexArray(mesh.VAO);
-			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-		}
-	}
+	//for (Model& mod : m_Models)
+	//{
+	//	glm::mat4 model_xform = glm::mat4(1);
+	//	model_xform *= mod.GetModelTransform();
+	//	GLuint model_xform_id = glGetUniformLocation(m_lightProgram, "model_xform");
+	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+	//
+	//	for (Mesh& mesh : mod.m_Meshs)
+	//	{
+	//		if (mesh.tex)
+	//		{
+	//			glActiveTexture(GL_TEXTURE0);
+	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
+	//			glUniform1i(glGetUniformLocation(m_lightProgram, "sampler_tex"), 0);
+	//		}
+	//		else
+	//		{
+	//			glBindTexture(GL_TEXTURE_2D, 0);
+	//		}
+	//
+	//		glBindVertexArray(mesh.VAO);
+	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+	//	}
+	//}
 
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();

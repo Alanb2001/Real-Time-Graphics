@@ -35,8 +35,8 @@ private:
 
 	std::vector<Model> m_Models;
 
-	GLuint per_frame_ubo_;
-	GLuint per_model_ubo_;
+	GLuint per_frame_ubo_{ 0 };
+	GLuint per_model_ubo_{ 0 };
 
 	bool m_wireframe{ false };
 
