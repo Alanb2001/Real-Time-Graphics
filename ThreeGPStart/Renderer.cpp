@@ -256,13 +256,13 @@ void Renderer::CreateTerrain(int size)
 // Loads, compiles and links the shaders and creates a program object to host them
 bool Renderer::CreateProgram()
 {
-	glGenBuffers(1, &per_frame_ubo_);
-	glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(PerFrameUniforms), nullptr, GL_STREAM_DRAW);
+	//glGenBuffers(1, &per_frame_ubo_);
+	//glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
+	//glBufferData(GL_UNIFORM_BUFFER, sizeof(PerFrameUniforms), nullptr, GL_STREAM_DRAW);
 
-	glGenBuffers(1, &per_model_ubo_);
-	glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(PerModelUniforms), nullptr, GL_STREAM_DRAW);
+	//glGenBuffers(1, &per_model_ubo_);
+	//glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
+	//glBufferData(GL_UNIFORM_BUFFER, sizeof(PerModelUniforms), nullptr, GL_STREAM_DRAW);
 
 	// Creates a new program (returns a unqiue id)
 	m_program = glCreateProgram();
@@ -282,6 +282,7 @@ bool Renderer::CreateProgram()
 
 	// Attach the fragment shader (copies it)
 	glAttachShader(m_program, fragment_shader);
+	//glBindAttribLocation(m_program, 0, "fragment_colour");
 
 	// Done with the originals of these as we have made copies
 	glDeleteShader(vertex_shader);
@@ -291,11 +292,11 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_program))
 		return false;
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
-	glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerFrameUniforms"), 0);
+	//glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
+	//glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerFrameUniforms"), 0);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_model_ubo_);
-	glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerModelUniforms"), 0);
+	//glBindBufferBase(GL_UNIFORM_BUFFER, 1, per_model_ubo_);
+	//glUniformBlockBinding(m_program, glGetUniformBlockIndex(m_program, "PerModelUniforms"), 0);
 
 	// Creates a new program (returns a unqiue id)
 	m_lightProgram = glCreateProgram();
@@ -311,10 +312,12 @@ bool Renderer::CreateProgram()
 
 	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
 	// Not needed if you use (location=0) in the vertex shader itself
-	//glBindAttribLocation(m_program, 0, "vertex_position");
+	glBindAttribLocation(m_lightProgram, 0, "vertex_position");
+	glBindAttribLocation(m_lightProgram, 1, "vertex_normal");
 
 	// Attach the fragment shader (copies it)
 	glAttachShader(m_lightProgram, lights_FS);
+	//glBindAttribLocation(m_lightProgram, 0, "fragment_colour");
 
 	// Done with the originals of these as we have made copies
 	glDeleteShader(lights_VS);
@@ -324,11 +327,11 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_lightProgram))
 		return false;
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
-	glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerFrameUniforms"), 0);
+	//glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_frame_ubo_);
+	//glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerFrameUniforms"), 0);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_model_ubo_);
-	glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerModelUniforms"), 0);
+	//glBindBufferBase(GL_UNIFORM_BUFFER, 1, per_model_ubo_);
+	//glUniformBlockBinding(m_lightProgram, glGetUniformBlockIndex(m_lightProgram, "PerModelUniforms"), 0);
 
 	return !Helpers::CheckForGLError();
 }
@@ -385,20 +388,17 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 
 	PerFrameUniforms per_frame_uniforms;
 	PerModelUniforms per_model_uniforms;
-	Mesh mesh;
 
 	GLint viewportSize[4];
 	glGetIntegerv(GL_VIEWPORT, viewportSize);
 	const float aspect_ratio = viewportSize[2] / (float)viewportSize[3];
-	per_model_uniforms.view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
-	per_model_uniforms.projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
+	glm::mat4 projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
+	glm::mat4 view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
+	glm::mat4 combined_xform = projection_xform * view_xform;
+	GLuint combined_xform_id = glGetUniformLocation(m_program, "combined_xform");
 
-	//glm::mat4 projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
-
-	//glm::mat4 view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
-	//glm::mat4 combined_xform = projection_xform * view_xform;
-
-	//GLuint combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
+	//per_model_uniforms.view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
+	//per_model_uniforms.projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
 
 	glUseProgram(m_program);
 	// Configure pipeline settings
@@ -408,53 +408,80 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDepthFunc(GL_LEQUAL);
 	glDisable(GL_BLEND);
 
-	per_frame_uniforms.cam_pos = glm::vec3(camera.GetPosition());
-	per_frame_uniforms.ambeint_light = glm::vec3(0.0, 0.0, 0.0);
+	//per_frame_uniforms.cam_pos = glm::vec3(camera.GetPosition().x, camera.GetPosition().y, camera.GetPosition().z);
+	//per_frame_uniforms.ambeint_light = glm::vec3(1.0, 1.0, 1.0);
 
-	for (int j = 0; j < m_Models.size(); j++)
+	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+
+	GLuint camera_position_id = glGetUniformLocation(m_program, "camera_position");
+	glm::vec3 camera_position = camera.GetPosition();
+	glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
+
+	//for (int j = 0; j < m_Models.size(); j++)
+	//{
+	//	per_model_uniforms.model_xform = glm::mat4(m_Models[j].GetModelTransform());
+
+	//	glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
+	//	glBufferData(GL_UNIFORM_BUFFER, sizeof(per_frame_uniforms), &per_frame_uniforms, GL_STREAM_DRAW);
+	//	glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
+	//	glBufferData(GL_UNIFORM_BUFFER, sizeof(per_model_uniforms), &per_model_uniforms, GL_STREAM_DRAW);
+
+	//	glBindVertexArray(m_Models[j].m_Meshs[j].tex);
+	//	glBindVertexArray(m_Models[j].m_Meshs[j].VAO);
+	//	glDrawElements(GL_TRIANGLES, m_Models[j].m_Meshs[j].numElements, GL_UNSIGNED_INT, (void*)0);
+	//}
+
+	for (Model& mod : m_Models)
 	{
-		//per_model_uniforms.model_xform = glm::mat4(j);
-
-		glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
-		glBufferData(GL_UNIFORM_BUFFER, sizeof(per_frame_uniforms), &per_frame_uniforms, GL_STREAM_DRAW);
-		glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
-		glBufferData(GL_UNIFORM_BUFFER, sizeof(per_model_uniforms), &per_model_uniforms, GL_STREAM_DRAW);
-
-		glBindVertexArray(mesh.VAO);
-		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+		glm::mat4 model_xform = glm::mat4(1);
+		model_xform *= mod.GetModelTransform();
+		GLuint model_xform_id = glGetUniformLocation(m_program, "model_xform");
+		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+	
+		for (Mesh& mesh : mod.m_Meshs)
+		{
+			if (mesh.tex)
+			{
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, mesh.tex);
+				glUniform1i(glGetUniformLocation(m_program, "sampler_tex"), 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_2D, 0);
+			}
+	
+			glBindVertexArray(mesh.VAO);
+			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+		}
 	}
 
-	glUseProgram(m_lightProgram);
+	//glUseProgram(m_lightProgram);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthMask(GL_FALSE);
+	//glDepthFunc(GL_EQUAL);
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_ONE, GL_ONE);
 
-	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+	//per_frame_uniforms.cam_pos = glm::vec3(camera.GetPosition().x, camera.GetPosition().y, camera.GetPosition().z);
+	//per_frame_uniforms.ambeint_light = glm::vec3(1.0, 1.0, 1.0);
 
-	//GLuint camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
-	/*glm::vec3 camera_position = camera.GetPosition();*/
-	//glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
-
-	//for (Model& mod : m_Models)
+	//for (int j = 0; j < m_Models.size(); j++)
 	//{
-	//	glm::mat4 model_xform = glm::mat4(1);
-	//	model_xform *= mod.GetModelTransform();
-	//	GLuint model_xform_id = glGetUniformLocation(m_lightProgram, "model_xform");
-	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-	//
-	//	for (Mesh& mesh : mod.m_Meshs)
-	//	{
-	//		if (mesh.tex)
-	//		{
-	//			glActiveTexture(GL_TEXTURE0);
-	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
-	//			glUniform1i(glGetUniformLocation(m_lightProgram, "sampler_tex"), 0);
-	//		}
-	//		else
-	//		{
-	//			glBindTexture(GL_TEXTURE_2D, 0);
-	//		}
-	//
-	//		glBindVertexArray(mesh.VAO);
-	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-	//	}
+	//	per_model_uniforms.model_xform = glm::mat4(m_Models[j].GetModelTransform());
+	//	per_model_uniforms.material_colour = glm::vec3(1.0, 1.0, 1.0);
+
+	//	glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo_);
+	//	glBufferData(GL_UNIFORM_BUFFER, sizeof(per_model_uniforms), &per_model_uniforms, GL_STREAM_DRAW);
+
+	//	per_frame_uniforms.light_position = glm::vec3(500, 500, 0);
+	//	per_frame_uniforms.light_range = 600;
+	//	per_frame_uniforms.light_direction = glm::vec3(45, 0, 0);
+
+	//	glBindBuffer(GL_UNIFORM_BUFFER, per_frame_ubo_);
+	//	glBufferData(GL_UNIFORM_BUFFER, sizeof(per_frame_uniforms), &per_frame_uniforms, GL_STREAM_DRAW);
+
+	//	glDrawElements(GL_TRIANGLES, m_Models[j].m_Meshs[j].numElements, GL_UNSIGNED_INT, (void*)0);
 	//}
 
 	// Always a good idea, when debugging at least, to check for GL errors each frame
@@ -477,4 +504,3 @@ int Renderer::GetModelIndex(std::string modelName)
 	}
 	return -1;
 }
-
