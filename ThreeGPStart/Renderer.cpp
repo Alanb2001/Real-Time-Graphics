@@ -419,6 +419,9 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 
+	combined_xform = projection_xform * view_xform;
+	combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
+
 	glm::vec3 lightPosition = glm::vec3(0, 500, 0);
 	GLuint lightPositionID = glGetUniformLocation(m_lightProgram, "light_position");
 	glUniform3fv(lightPositionID, 1, glm::value_ptr(lightPosition));
@@ -430,6 +433,8 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
 	camera_position = camera.GetPosition();
 	glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
+
+	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
 
 	for (Model& mod : m_Models)
 	{
