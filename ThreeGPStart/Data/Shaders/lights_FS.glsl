@@ -9,7 +9,6 @@ uniform vec3 light_position;
 in vec3 varying_position; 
 in vec3 varying_normal;
 in vec2 varying_coord;
-in float varying_gouraud;
 
 out vec4 fragment_colour;
 

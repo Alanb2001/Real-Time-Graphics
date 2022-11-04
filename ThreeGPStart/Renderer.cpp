@@ -421,11 +421,11 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 
 	glm::vec3 lightPosition = glm::vec3(0, 500, 0);
 	GLuint lightPositionID = glGetUniformLocation(m_lightProgram, "light_position");
-	glUniformMatrix4fv(lightPositionID, 1, GL_FALSE, glm::value_ptr(lightPosition));
+	glUniform3fv(lightPositionID, 1, glm::value_ptr(lightPosition));
 
 	glm::vec3 lightColour = glm::vec3(1, 1, 0);
 	GLuint lightColourID = glGetUniformLocation(m_lightProgram, "light_colour");
-	glUniformMatrix4fv(lightColourID, 1, GL_FALSE, glm::value_ptr(lightColour));
+	glUniform3fv(lightColourID, 1, glm::value_ptr(lightColour));
 
 	camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
 	camera_position = camera.GetPosition();
