@@ -422,12 +422,28 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	combined_xform = projection_xform * view_xform;
 	combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
 
-	glm::vec3 lightPosition = glm::vec3(0, 500, 0);
-	GLuint lightPositionID = glGetUniformLocation(m_lightProgram, "light_position");
+	glm::vec3 lightPosition = glm::vec3(0, 50, 0);
+	GLuint lightPositionID = glGetUniformLocation(m_lightProgram, "light[0].light_position");
 	glUniform3fv(lightPositionID, 1, glm::value_ptr(lightPosition));
 
-	glm::vec3 lightColour = glm::vec3(1, 1, 0);
-	GLuint lightColourID = glGetUniformLocation(m_lightProgram, "light_colour");
+	glm::vec3 lightColour = glm::vec3(1, 0, 0);
+	GLuint lightColourID = glGetUniformLocation(m_lightProgram, "light[0].light_colour");
+	glUniform3fv(lightColourID, 1, glm::value_ptr(lightColour));
+
+	lightPosition = glm::vec3(500, 500, 0);
+	lightPositionID = glGetUniformLocation(m_lightProgram, "light[1].light_position");
+	glUniform3fv(lightPositionID, 1, glm::value_ptr(lightPosition));
+
+	lightColour = glm::vec3(1, 1, 1);
+	lightColourID = glGetUniformLocation(m_lightProgram, "light[1].light_colour");
+	glUniform3fv(lightColourID, 1, glm::value_ptr(lightColour));
+
+	lightPosition = glm::vec3(0, 500, 500);
+	lightPositionID = glGetUniformLocation(m_lightProgram, "light[2].light_position");
+	glUniform3fv(lightPositionID, 1, glm::value_ptr(lightPosition));
+
+	lightColour = glm::vec3(0, 0, 1);
+	lightColourID = glGetUniformLocation(m_lightProgram, "light[2].light_colour");
 	glUniform3fv(lightColourID, 1, glm::value_ptr(lightColour));
 
 	camera_position_id = glGetUniformLocation(m_lightProgram, "camera_position");
