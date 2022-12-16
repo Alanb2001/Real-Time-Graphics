@@ -131,6 +131,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\Shaders\fragment_shader.glsl" />
+    <None Include="Data\Shaders\FXAA_FS.glsl" />
+    <None Include="Data\Shaders\FXAA_VS.glsl" />
     <None Include="Data\Shaders\lights_FS.glsl" />
     <None Include="Data\Shaders\lights_VS.glsl" />
     <None Include="Data\Shaders\vertex_shader.glsl" />

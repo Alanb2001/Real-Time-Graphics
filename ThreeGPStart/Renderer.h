@@ -33,6 +33,8 @@ private:
 
 	GLuint m_lightProgram{ 0 };
 
+	GLuint m_FXAAProgram{ 0 };
+
 	std::vector<Model> m_Models;
 
 	GLuint per_frame_ubo_{ 0 };

@@ -309,6 +309,32 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_lightProgram))
 		return false;
 
+	// Creates a new program (returns a unqiue id)
+	m_FXAAProgram = glCreateProgram();
+
+	// Loads and creates vertex and fragment shaders
+	GLuint FXAA_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/FXAA_VS.glsl") };
+	GLuint FXAA_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/FXAA_FS.glsl") };
+	if (FXAA_VS == 0 || FXAA_FS == 0)
+		return false;
+
+	// Attach the vertex shader to this program (copies it)
+	glAttachShader(m_FXAAProgram, FXAA_VS);
+
+	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
+	// Not needed if you use (location=0) in the vertex shader itself
+
+	// Attach the fragment shader (copies it)
+	glAttachShader(m_FXAAProgram, FXAA_FS);
+
+	// Done with the originals of these as we have made copies
+	glDeleteShader(FXAA_VS);
+	glDeleteShader(FXAA_FS);
+
+	// Link the shaders, checking for errors
+	if (!Helpers::LinkProgramShaders(m_FXAAProgram))
+		return false;
+
 	return !Helpers::CheckForGLError();
 }
 
