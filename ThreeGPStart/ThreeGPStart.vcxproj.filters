@@ -140,5 +140,11 @@
     <None Include="Data\Shaders\FXAA_VS.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Data\Shaders\DOF_FS.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Data\Shaders\DOF_VS.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

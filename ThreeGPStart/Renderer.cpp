@@ -335,6 +335,31 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_FXAAProgram))
 		return false;
 
+	m_DOFProgram = glCreateProgram();
+
+	// Loads and creates vertex and fragment shaders
+	GLuint DOF_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/DOF_VS.glsl") };
+	GLuint DOF_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/DOF_FS.glsl") };
+	if (DOF_VS == 0 || DOF_FS == 0)
+		return false;
+
+	// Attach the vertex shader to this program (copies it)
+	glAttachShader(m_DOFProgram, DOF_VS);
+
+	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
+	// Not needed if you use (location=0) in the vertex shader itself
+
+	// Attach the fragment shader (copies it)
+	glAttachShader(m_DOFProgram, DOF_FS);
+
+	// Done with the originals of these as we have made copies
+	glDeleteShader(DOF_VS);
+	glDeleteShader(DOF_FS);
+
+	// Link the shaders, checking for errors
+	if (!Helpers::LinkProgramShaders(m_DOFProgram))
+		return false;
+
 	return !Helpers::CheckForGLError();
 }
 
