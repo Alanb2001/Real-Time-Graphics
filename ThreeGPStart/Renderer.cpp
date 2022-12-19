@@ -528,6 +528,67 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		}
 	}
 
+	glUseProgram(m_FXAAProgram);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthMask(GL_TRUE);
+	glDepthFunc(GL_LEQUAL);
+	glDisable(GL_BLEND);
+	
+	glm::vec2 texelStep = glm::vec2(0, 0);
+	GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
+	glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
+
+	GLuint showEdges = 1;
+	GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
+	glUniform1i(showEdgesID, showEdges);
+
+	GLuint fxaaOn = 1;
+	GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
+	glUniform1i(fxaaOnID, fxaaOn);
+
+	GLfloat lumaThreshold = 0.5f;
+	GLuint lumaThresholdID = glGetUniformLocation(m_FXAAProgram, "u_lumaThreshold");
+	glUniform1f(lumaThresholdID, lumaThreshold);
+
+	GLfloat mulReduce = 8.0f;
+	GLuint mulReduceID = glGetUniformLocation(m_FXAAProgram, "u_mulReduce");
+	glUniform1f(mulReduceID, mulReduce);
+	
+	GLfloat minReduce = 128.0f;
+	GLuint minReduceID = glGetUniformLocation(m_FXAAProgram, "u_minReduce");
+	glUniform1f(minReduceID, minReduce);
+
+	GLfloat maxSpan = 8.0f;
+	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
+	glUniform1f(maxSpanID, maxSpan);
+
+	for (Model& mod : m_Models)
+	{
+		glm::mat4 model_xform = glm::mat4(1);
+		model_xform *= mod.GetModelTransform();
+		GLuint model_xform_id = glGetUniformLocation(m_FXAAProgram, "model_xform");
+		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+
+		for (Mesh& mesh : mod.m_Meshs)
+		{
+			if (mesh.tex)
+			{
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, mesh.tex);
+				glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_2D, 0);
+			}
+			
+			glBindVertexArray(mesh.VAO);
+			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+		}
+	}
+
+
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
 }

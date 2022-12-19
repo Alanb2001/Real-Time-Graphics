@@ -1,6 +1,6 @@
 #version 330
 
-uniform sampler2D u_colorTexture; 
+uniform sampler2D sampler_tex; 
 
 uniform vec2 u_texelStep;
 uniform int u_showEdges;
@@ -11,7 +11,7 @@ uniform float u_mulReduce;
 uniform float u_minReduce;
 uniform float u_maxSpan;
 
-in vec2 v_texCoord;
+in vec2 varying_coord;
 
 out vec4 fragColor;
 
@@ -22,7 +22,7 @@ out vec4 fragColor;
 
 void main(void)
 {
-    vec3 rgbM = texture(u_colorTexture, v_texCoord).rgb;
+    vec3 rgbM = texture(sampler_tex, varying_coord).rgb;
 
 	// Possibility to toggle FXAA on and off.
 	if (u_fxaaOn == 0)
@@ -33,10 +33,10 @@ void main(void)
 	}
 
 	// Sampling neighbour texels. Offsets are adapted to OpenGL texture coordinates. 
-	vec3 rgbNW = textureOffset(u_colorTexture, v_texCoord, ivec2(-1, 1)).rgb;
-    vec3 rgbNE = textureOffset(u_colorTexture, v_texCoord, ivec2(1, 1)).rgb;
-    vec3 rgbSW = textureOffset(u_colorTexture, v_texCoord, ivec2(-1, -1)).rgb;
-    vec3 rgbSE = textureOffset(u_colorTexture, v_texCoord, ivec2(1, -1)).rgb;
+	vec3 rgbNW = textureOffset(sampler_tex, varying_coord, ivec2(-1, 1)).rgb;
+    vec3 rgbNE = textureOffset(sampler_tex, varying_coord, ivec2(1, 1)).rgb;
+    vec3 rgbSW = textureOffset(sampler_tex, varying_coord, ivec2(-1, -1)).rgb;
+    vec3 rgbSE = textureOffset(sampler_tex, varying_coord, ivec2(1, -1)).rgb;
 
 	// see http://en.wikipedia.org/wiki/Grayscale
 	const vec3 toLuma = vec3(0.299, 0.587, 0.114);
@@ -77,14 +77,14 @@ void main(void)
     samplingDirection = clamp(samplingDirection * minSamplingDirectionFactor, vec2(-u_maxSpan), vec2(u_maxSpan)) * u_texelStep;
 	
 	// Inner samples on the tab.
-	vec3 rgbSampleNeg = texture(u_colorTexture, v_texCoord + samplingDirection * (1.0/3.0 - 0.5)).rgb;
-	vec3 rgbSamplePos = texture(u_colorTexture, v_texCoord + samplingDirection * (2.0/3.0 - 0.5)).rgb;
+	vec3 rgbSampleNeg = texture(sampler_tex, varying_coord + samplingDirection * (1.0/3.0 - 0.5)).rgb;
+	vec3 rgbSamplePos = texture(sampler_tex, varying_coord + samplingDirection * (2.0/3.0 - 0.5)).rgb;
 
 	vec3 rgbTwoTab = (rgbSamplePos + rgbSampleNeg) * 0.5;  
 
 	// Outer samples on the tab.
-	vec3 rgbSampleNegOuter = texture(u_colorTexture, v_texCoord + samplingDirection * (0.0/3.0 - 0.5)).rgb;
-	vec3 rgbSamplePosOuter = texture(u_colorTexture, v_texCoord + samplingDirection * (3.0/3.0 - 0.5)).rgb;
+	vec3 rgbSampleNegOuter = texture(sampler_tex, varying_coord + samplingDirection * (0.0/3.0 - 0.5)).rgb;
+	vec3 rgbSamplePosOuter = texture(sampler_tex, varying_coord + samplingDirection * (3.0/3.0 - 0.5)).rgb;
 	
 	vec3 rgbFourTab = (rgbSamplePosOuter + rgbSampleNegOuter) * 0.25 + rgbTwoTab * 0.5;   
 	
