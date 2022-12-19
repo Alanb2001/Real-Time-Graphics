@@ -588,7 +588,42 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		}
 	}
 
+	glUseProgram(m_DOFProgram);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glDepthMask(GL_TRUE);
+	glDepthFunc(GL_LEQUAL);
+	glDisable(GL_BLEND);
 
+	glm::vec2 parameters = glm::vec2(0, 0);
+	GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+
+	for (Model& mod : m_Models)
+	{
+		glm::mat4 model_xform = glm::mat4(1);
+		model_xform *= mod.GetModelTransform();
+		GLuint model_xform_id = glGetUniformLocation(m_DOFProgram, "model_xform");
+		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+
+		for (Mesh& mesh : mod.m_Meshs)
+		{
+			if (mesh.tex)
+			{
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, mesh.tex);
+				glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_2D, 0);
+			}
+
+			glBindVertexArray(mesh.VAO);
+			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+		}
+	}
+	
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
 }
