@@ -5,7 +5,6 @@
 
 Renderer::Renderer()
 {
-	
 }
 
 // On exit must clean up any OpenGL resources e.g. the program, the buffers
@@ -253,6 +252,64 @@ void Renderer::CreateTerrain(int size)
 	Helpers::CheckForGLError();
 }
 
+void Renderer::CreateFrameBufffer()
+{
+	float rectangleVertices[] =
+	{
+		// Coords	// Tex Coords
+		 1.0f, -1.0f, 1.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f, 0.0f,
+		-1.0f,  1.0f, 0.0f, 1.0f,
+
+		 1.0f,  1.0f, 1.0f, 1.0f,
+		 1.0f, -1.0f, 1.0f, 0.0f,
+		-1.0f,  1.0f, 0.0f, 1.0f,
+	};
+
+	// Use the texture as the colour attachment for the framebuffer
+	GLuint FBO;
+	glGenFramebuffers(1, &FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+	// Create a new texture of the scene in focus
+	GLuint focusTexture;
+	glGenTextures(1, &focusTexture);
+	glBindTexture(GL_TEXTURE_2D, focusTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, focusTexture, 0);
+
+	GLuint RBO;
+	glGenRenderbuffers(1, &RBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 1280, 720);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+
+	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "Framebuffer error: " << fboStatus << std::endl;
+	}
+
+	GLuint rectVAO, rectVBO;
+	glGenVertexArrays(1, &rectVAO);
+	glGenBuffers(1, &rectVBO);
+	glBindVertexArray(rectVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, rectVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices), &rectangleVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+	Helpers::CheckForGLError();
+}
+
 // Loads, compiles and links the shaders and creates a program object to host them
 bool Renderer::CreateProgram()
 {
@@ -360,6 +417,30 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_DOFProgram))
 		return false;
 
+	m_FrameBufferProgram = glCreateProgram();
+
+	GLuint FB_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/FrameBuffer_VS.glsl") };
+	GLuint FB_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/FrameBuffer_FS.glsl") };
+	if (FB_VS == 0 || FB_FS == 0)
+		return false;
+
+	// Attach the vertex shader to this program (copies it)
+	glAttachShader(m_FrameBufferProgram, FB_VS);
+
+	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
+	// Not needed if you use (location=0) in the vertex shader itself
+
+	// Attach the fragment shader (copies it)
+	glAttachShader(m_FrameBufferProgram, FB_FS);
+
+	// Done with the originals of these as we have made copies
+	glDeleteShader(FB_VS);
+	glDeleteShader(FB_FS);
+
+	// Link the shaders, checking for errors
+	if (!Helpers::LinkProgramShaders(m_FrameBufferProgram))
+		return false;
+
 	return !Helpers::CheckForGLError();
 }
 
@@ -372,6 +453,7 @@ bool Renderer::InitialiseGeometry()
 		return false;
 	}
 
+	CreateFrameBufffer();
 	CreateTerrain(3000);
 
 	Model jeep("Data\\Models\\Jeep\\jeep.obj", "Data\\Models\\Jeep\\jeep_army.jpg");
@@ -412,9 +494,6 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	// Clear buffers from previous frame
 	glClearColor(0.0f, 0.0f, 0.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//PerFrameUniforms per_frame_uniforms;
-	//PerModelUniforms per_model_uniforms;
 
 	GLint viewportSize[4];
 	glGetIntegerv(GL_VIEWPORT, viewportSize);
@@ -464,12 +543,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	}
 
 	glUseProgram(m_lightProgram);
-	glEnable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-	glDepthFunc(GL_EQUAL);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
-
+	
 	combined_xform = projection_xform * view_xform;
 	combined_xform_id = glGetUniformLocation(m_lightProgram, "combined_xform");
 
@@ -529,12 +603,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	}
 
 	glUseProgram(m_FXAAProgram);
-	//glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
-	//glDepthMask(GL_TRUE);
-	//glDepthFunc(GL_LEQUAL);
-	//glDisable(GL_BLEND);
-	
+
 	combined_xform = projection_xform * view_xform;
 	combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
 
@@ -594,26 +663,13 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	}
 
 	glUseProgram(m_DOFProgram);
-	//glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
-	//glDepthMask(GL_TRUE);
-	//glDepthFunc(GL_LEQUAL);
-	//glDisable(GL_BLEND);
-
-	glm::vec2 parameters = glm::vec2(0, 0);
-	GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
-	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-
+	
 	combined_xform = projection_xform * view_xform;
 	combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
 	
-	//GLfloat focal_distance = 50.0;
-	//GLuint focal_distanceID = glGetUniformLocation(m_DOFProgram, "focal_distance");
-	//glUniform1f(focal_distanceID, focal_distance);
-
-	//GLfloat focal_depth = 30.0;
-	//GLuint focal_depthID = glGetUniformLocation(m_DOFProgram, "focal_depth");
-	//glUniform1f(focal_depthID, focal_depth);
+	glm::vec2 parameters = glm::vec2(2, 2);
+	GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
 
 	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
 
@@ -642,6 +698,10 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		}
 	}
 	
+	glUseProgram(m_FrameBufferProgram);
+
+	glUniform1i(glGetUniformLocation(m_FrameBufferProgram, "screenTexture"), 0);
+
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
 }

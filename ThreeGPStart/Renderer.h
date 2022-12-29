@@ -37,11 +37,13 @@ private:
 
 	GLuint m_DOFProgram{ 0 };
 
+	GLuint m_FrameBufferProgram{ 0 };
+
 	std::vector<Model> m_Models;
 
 	GLuint per_frame_ubo_{ 0 };
 	GLuint per_model_ubo_{ 0 };
-
+	
 	bool m_wireframe{ false };
 
 	bool CreateProgram();
@@ -51,6 +53,7 @@ public:
 	void DefineGUI();
 
 	void CreateTerrain(int size);
+	void CreateFrameBufffer();
 
 	// Create and / or load geometry, this is like 'level load'
 	bool InitialiseGeometry();
