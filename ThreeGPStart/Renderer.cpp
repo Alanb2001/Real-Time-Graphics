@@ -413,8 +413,8 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glClearColor(0.0f, 0.0f, 0.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	PerFrameUniforms per_frame_uniforms;
-	PerModelUniforms per_model_uniforms;
+	//PerFrameUniforms per_frame_uniforms;
+	//PerModelUniforms per_model_uniforms;
 
 	GLint viewportSize[4];
 	glGetIntegerv(GL_VIEWPORT, viewportSize);
@@ -529,17 +529,20 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	}
 
 	glUseProgram(m_FXAAProgram);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glDepthMask(GL_TRUE);
-	glDepthFunc(GL_LEQUAL);
-	glDisable(GL_BLEND);
+	//glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_CULL_FACE);
+	//glDepthMask(GL_TRUE);
+	//glDepthFunc(GL_LEQUAL);
+	//glDisable(GL_BLEND);
 	
+	combined_xform = projection_xform * view_xform;
+	combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
+
 	glm::vec2 texelStep = glm::vec2(0, 0);
 	GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
 	glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
 
-	GLuint showEdges = 1;
+	GLuint showEdges = 0;
 	GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
 	glUniform1i(showEdgesID, showEdges);
 
@@ -562,7 +565,9 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLfloat maxSpan = 8.0f;
 	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
 	glUniform1f(maxSpanID, maxSpan);
-
+	
+	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+	
 	for (Model& mod : m_Models)
 	{
 		glm::mat4 model_xform = glm::mat4(1);
@@ -589,15 +594,28 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	}
 
 	glUseProgram(m_DOFProgram);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glDepthMask(GL_TRUE);
-	glDepthFunc(GL_LEQUAL);
-	glDisable(GL_BLEND);
+	//glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_CULL_FACE);
+	//glDepthMask(GL_TRUE);
+	//glDepthFunc(GL_LEQUAL);
+	//glDisable(GL_BLEND);
 
 	glm::vec2 parameters = glm::vec2(0, 0);
 	GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
 	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+
+	combined_xform = projection_xform * view_xform;
+	combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
+	
+	//GLfloat focal_distance = 50.0;
+	//GLuint focal_distanceID = glGetUniformLocation(m_DOFProgram, "focal_distance");
+	//glUniform1f(focal_distanceID, focal_distance);
+
+	//GLfloat focal_depth = 30.0;
+	//GLuint focal_depthID = glGetUniformLocation(m_DOFProgram, "focal_depth");
+	//glUniform1f(focal_depthID, focal_depth);
+
+	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
 
 	for (Model& mod : m_Models)
 	{

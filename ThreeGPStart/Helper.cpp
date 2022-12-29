@@ -146,7 +146,7 @@ namespace Helpers
 	{
 		// Create shaders
 		GLuint shaderId{ glCreateShader(shaderType) };
-
+		
 		std::string vShaderString = stringFromFile(shaderFilename);
 		if (vShaderString.empty())
 		{
