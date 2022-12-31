@@ -52,7 +52,7 @@ int main()
 	{				
 		if (!simulation.Update(window))
 			break;
-		
+
 		// GLFW updating
 		glfwSwapBuffers(window);
 		glfwPollEvents();

@@ -54,7 +54,7 @@ public:
 
 	void CreateTerrain(int size);
 	void CreateFrameBufffer();
-
+	
 	// Create and / or load geometry, this is like 'level load'
 	bool InitialiseGeometry();
 
