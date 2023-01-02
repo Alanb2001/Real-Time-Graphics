@@ -252,24 +252,28 @@ void Renderer::CreateTerrain(int size)
 	Helpers::CheckForGLError();
 }
 
-void Renderer::CreateFrameBufffer()
+float rectangleVertices[] =
 {
-	float rectangleVertices[] =
-	{
-		// Coords	// Tex Coords
-		 1.0f, -1.0f, 1.0f, 0.0f,
-		-1.0f, -1.0f, 0.0f, 0.0f,
-		-1.0f,  1.0f, 0.0f, 1.0f,
+	// Coords    // texCoords
+	 1.0f, -1.0f,  1.0f, 0.0f,
+	-1.0f, -1.0f,  0.0f, 0.0f,
+	-1.0f,  1.0f,  0.0f, 1.0f,
 
-		 1.0f,  1.0f, 1.0f, 1.0f,
-		 1.0f, -1.0f, 1.0f, 0.0f,
-		-1.0f,  1.0f, 0.0f, 1.0f,
-	};
+	 1.0f,  1.0f,  1.0f, 1.0f,
+	 1.0f, -1.0f,  1.0f, 0.0f,
+	-1.0f,  1.0f,  0.0f, 1.0f
+};
 
+GLuint framebufferTexture;
+GLuint FBO;
+GLuint rectVAO, rectVBO;
+GLuint RBO;
+
+void Renderer::CreateFrameBuffer()
+{
 	glUseProgram(m_FrameBufferProgram);
 	glUniform1i(glGetUniformLocation(m_FrameBufferProgram, "screenTexture"), 0);
 
-	GLuint rectVAO, rectVBO;
 	glGenVertexArrays(1, &rectVAO);
 	glGenBuffers(1, &rectVBO);
 	glBindVertexArray(rectVAO);
@@ -280,23 +284,18 @@ void Renderer::CreateFrameBufffer()
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-	// Use the texture as the colour attachment for the framebuffer
-	GLuint FBO;
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
-	// Create a new texture of the scene in focus
-	GLuint focusTexture;
-	glGenTextures(1, &focusTexture);
-	glBindTexture(GL_TEXTURE_2D, focusTexture);
+	glGenTextures(1, &framebufferTexture);
+	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, focusTexture, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
 
-	GLuint RBO;
 	glGenRenderbuffers(1, &RBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 1280, 720);
@@ -304,21 +303,7 @@ void Renderer::CreateFrameBufffer()
 
 	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
-	{
 		std::cout << "Framebuffer error: " << fboStatus << std::endl;
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	glEnable(GL_DEPTH_TEST);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glUseProgram(m_FrameBufferProgram);
-	glBindVertexArray(rectVAO);
-	glDisable(GL_DEPTH_TEST);
-	glBindTexture(GL_TEXTURE_2D, focusTexture);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	Helpers::CheckForGLError();
 }
 
 // Loads, compiles and links the shaders and creates a program object to host them
@@ -463,8 +448,8 @@ bool Renderer::InitialiseGeometry()
 	{
 		return false;
 	}
-
-	CreateFrameBufffer();
+	
+	CreateFrameBuffer();
 
 	CreateTerrain(3000);
 
@@ -494,6 +479,15 @@ bool Renderer::InitialiseGeometry()
 // Render the scene. Passed the delta time since last called.
 void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 {
+	// Bind the custom framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	// Specify the color of the background
+	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+	// Clean the back buffer and depth buffer
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
+	glEnable(GL_DEPTH_TEST);
+
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
@@ -612,107 +606,113 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 			glBindVertexArray(mesh.VAO);
 			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
 		}
+	};
+
+	/*glUseProgram(m_FXAAProgram);
+
+	combined_xform = projection_xform * view_xform;
+	combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
+
+	glm::vec2 texelStep = glm::vec2(0, 0);
+	GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
+	glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
+
+	GLuint showEdges = 0;
+	GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
+	glUniform1i(showEdgesID, showEdges);
+
+	GLuint fxaaOn = 1;
+	GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
+	glUniform1i(fxaaOnID, fxaaOn);
+
+	GLfloat lumaThreshold = 0.5f;
+	GLuint lumaThresholdID = glGetUniformLocation(m_FXAAProgram, "u_lumaThreshold");
+	glUniform1f(lumaThresholdID, lumaThreshold);
+
+	GLfloat mulReduce = 8.0f;
+	GLuint mulReduceID = glGetUniformLocation(m_FXAAProgram, "u_mulReduce");
+	glUniform1f(mulReduceID, mulReduce);
+	
+	GLfloat minReduce = 128.0f;
+	GLuint minReduceID = glGetUniformLocation(m_FXAAProgram, "u_minReduce");
+	glUniform1f(minReduceID, minReduce);
+
+	GLfloat maxSpan = 8.0f;
+	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
+	glUniform1f(maxSpanID, maxSpan);
+	
+	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+	
+	for (Model& mod : m_Models)
+	{
+		glm::mat4 model_xform = glm::mat4(1);
+		model_xform *= mod.GetModelTransform();
+		GLuint model_xform_id = glGetUniformLocation(m_FXAAProgram, "model_xform");
+		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+
+		for (Mesh& mesh : mod.m_Meshs)
+		{
+			if (mesh.tex)
+			{
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, mesh.tex);
+				glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_2D, 0);
+			}
+			
+			glBindVertexArray(mesh.VAO);
+			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+		}
+	}*/
+
+	glUseProgram(m_DOFProgram);
+	
+	combined_xform = projection_xform * view_xform;
+	combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
+	
+	glm::vec2 parameters = glm::vec2(2, 2);
+	GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+
+	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+
+	for (Model& mod : m_Models)
+	{
+		glm::mat4 model_xform = glm::mat4(1);
+		model_xform *= mod.GetModelTransform();
+		GLuint model_xform_id = glGetUniformLocation(m_DOFProgram, "model_xform");
+		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+
+		for (Mesh& mesh : mod.m_Meshs)
+		{
+			if (mesh.tex)
+			{
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, mesh.tex);
+				glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_2D, 0);
+			}
+
+			glBindVertexArray(mesh.VAO);
+			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+		}
 	}
 
-	//glUseProgram(m_FXAAProgram);
-
-	//combined_xform = projection_xform * view_xform;
-	//combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
-
-	//glm::vec2 texelStep = glm::vec2(0, 0);
-	//GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
-	//glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
-
-	//GLuint showEdges = 0;
-	//GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
-	//glUniform1i(showEdgesID, showEdges);
-
-	//GLuint fxaaOn = 1;
-	//GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
-	//glUniform1i(fxaaOnID, fxaaOn);
-
-	//GLfloat lumaThreshold = 0.5f;
-	//GLuint lumaThresholdID = glGetUniformLocation(m_FXAAProgram, "u_lumaThreshold");
-	//glUniform1f(lumaThresholdID, lumaThreshold);
-
-	//GLfloat mulReduce = 8.0f;
-	//GLuint mulReduceID = glGetUniformLocation(m_FXAAProgram, "u_mulReduce");
-	//glUniform1f(mulReduceID, mulReduce);
-	//
-	//GLfloat minReduce = 128.0f;
-	//GLuint minReduceID = glGetUniformLocation(m_FXAAProgram, "u_minReduce");
-	//glUniform1f(minReduceID, minReduce);
-
-	//GLfloat maxSpan = 8.0f;
-	//GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
-	//glUniform1f(maxSpanID, maxSpan);
-	//
-	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-	//
-	//for (Model& mod : m_Models)
-	//{
-	//	glm::mat4 model_xform = glm::mat4(1);
-	//	model_xform *= mod.GetModelTransform();
-	//	GLuint model_xform_id = glGetUniformLocation(m_FXAAProgram, "model_xform");
-	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-
-	//	for (Mesh& mesh : mod.m_Meshs)
-	//	{
-	//		if (mesh.tex)
-	//		{
-	//			glActiveTexture(GL_TEXTURE0);
-	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
-	//			glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
-	//		}
-	//		else
-	//		{
-	//			glBindTexture(GL_TEXTURE_2D, 0);
-	//		}
-	//		
-	//		glBindVertexArray(mesh.VAO);
-	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-	//	}
-	//}
-
-	//glUseProgram(m_DOFProgram);
-	//
-	//combined_xform = projection_xform * view_xform;
-	//combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
-	//
-	//glm::vec2 parameters = glm::vec2(2, 2);
-	//GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
-	//glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-
-	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-
-	//for (Model& mod : m_Models)
-	//{
-	//	glm::mat4 model_xform = glm::mat4(1);
-	//	model_xform *= mod.GetModelTransform();
-	//	GLuint model_xform_id = glGetUniformLocation(m_DOFProgram, "model_xform");
-	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-
-	//for (Mesh& mesh : mod.m_Meshs)
-	//{
-	//	if (mesh.tex)
-	//	{
-	//		glActiveTexture(GL_TEXTURE0);
-	//		glBindTexture(GL_TEXTURE_2D, mesh.tex);
-	//		glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
-	//	}
-	//	else
-	//	{
-	//		glBindTexture(GL_TEXTURE_2D, 0);
-	//	}
-
-	//	glBindVertexArray(mesh.VAO);
-	//	glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-	//	}
-	//}
-	
+	// Bind the default framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	// Draw the framebuffer rectangle
 	glUseProgram(m_FrameBufferProgram);
-
-	glUniform1i(glGetUniformLocation(m_FrameBufferProgram, "screenTexture"), 0);
+	glBindVertexArray(rectVAO);
+	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+	glDisable(GL_CULL_FACE);
+	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();

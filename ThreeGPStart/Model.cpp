@@ -108,7 +108,6 @@ void Model::CreateModel(std::string filepath, std::string texturepath)
 
 		m_Meshs.push_back(smesh);
 
-
 		Helpers::CheckForGLError();
 	}
 }
