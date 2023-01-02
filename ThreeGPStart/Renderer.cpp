@@ -529,7 +529,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		model_xform *= mod.GetModelTransform();
 		GLuint model_xform_id = glGetUniformLocation(m_program, "model_xform");
 		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-	
+		
 		for (Mesh& mesh : mod.m_Meshs)
 		{
 			if (mesh.tex)
@@ -608,101 +608,114 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		}
 	};
 
-	/*glUseProgram(m_FXAAProgram);
+	//int n = 10;
+	//float aperture = 0.05f;
 
-	combined_xform = projection_xform * view_xform;
-	combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
+	//glm::vec3 right = glm::normalize(glm::cross(camera_position, camera.GetUpVector()));
+	//glm::vec3 p_up = glm::normalize(glm::cross(camera_position, camera.GetRightVector()));
 
-	glm::vec2 texelStep = glm::vec2(0, 0);
-	GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
-	glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
+	//for (int i = 0; i < n; i++)
+	//{
+	//	glm::vec3 bokeh = right * cosf(i * 2 * 3.14159f / n) + p_up * sinf(i * 2 * 3.14159f / n);
 
-	GLuint showEdges = 0;
-	GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
-	glUniform1i(showEdgesID, showEdges);
+	//	glAccum(i ? GL_ACCUM : GL_LOAD, 1.0 / n);
+	//}
 
-	GLuint fxaaOn = 1;
-	GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
-	glUniform1i(fxaaOnID, fxaaOn);
+	//glUseProgram(m_FXAAProgram);
 
-	GLfloat lumaThreshold = 0.5f;
-	GLuint lumaThresholdID = glGetUniformLocation(m_FXAAProgram, "u_lumaThreshold");
-	glUniform1f(lumaThresholdID, lumaThreshold);
+	//combined_xform = projection_xform * view_xform;
+	//combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
 
-	GLfloat mulReduce = 8.0f;
-	GLuint mulReduceID = glGetUniformLocation(m_FXAAProgram, "u_mulReduce");
-	glUniform1f(mulReduceID, mulReduce);
-	
-	GLfloat minReduce = 128.0f;
-	GLuint minReduceID = glGetUniformLocation(m_FXAAProgram, "u_minReduce");
-	glUniform1f(minReduceID, minReduce);
+	//glm::vec2 texelStep = glm::vec2(0, 0);
+	//GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
+	//glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
 
-	GLfloat maxSpan = 8.0f;
-	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
-	glUniform1f(maxSpanID, maxSpan);
-	
-	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-	
-	for (Model& mod : m_Models)
-	{
-		glm::mat4 model_xform = glm::mat4(1);
-		model_xform *= mod.GetModelTransform();
-		GLuint model_xform_id = glGetUniformLocation(m_FXAAProgram, "model_xform");
-		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+	//GLuint showEdges = 0;
+	//GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
+	//glUniform1i(showEdgesID, showEdges);
 
-		for (Mesh& mesh : mod.m_Meshs)
-		{
-			if (mesh.tex)
-			{
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, mesh.tex);
-				glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
-			}
-			else
-			{
-				glBindTexture(GL_TEXTURE_2D, 0);
-			}
-			
-			glBindVertexArray(mesh.VAO);
-			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-		}
-	}*/
+	//GLuint fxaaOn = 1;
+	//GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
+	//glUniform1i(fxaaOnID, fxaaOn);
 
-	glUseProgram(m_DOFProgram);
-	
-	combined_xform = projection_xform * view_xform;
-	combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
-	
-	glm::vec2 parameters = glm::vec2(2, 2);
-	GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
-	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+	//GLfloat lumaThreshold = 0.5f;
+	//GLuint lumaThresholdID = glGetUniformLocation(m_FXAAProgram, "u_lumaThreshold");
+	//glUniform1f(lumaThresholdID, lumaThreshold);
 
-	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+	//GLfloat mulReduce = 8.0f;
+	//GLuint mulReduceID = glGetUniformLocation(m_FXAAProgram, "u_mulReduce");
+	//glUniform1f(mulReduceID, mulReduce);
+	//
+	//GLfloat minReduce = 128.0f;
+	//GLuint minReduceID = glGetUniformLocation(m_FXAAProgram, "u_minReduce");
+	//glUniform1f(minReduceID, minReduce);
 
-	for (Model& mod : m_Models)
-	{
-		glm::mat4 model_xform = glm::mat4(1);
-		model_xform *= mod.GetModelTransform();
-		GLuint model_xform_id = glGetUniformLocation(m_DOFProgram, "model_xform");
-		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+	//GLfloat maxSpan = 8.0f;
+	//GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
+	//glUniform1f(maxSpanID, maxSpan);
+	//
+	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+	//
+	//for (Model& mod : m_Models)
+	//{
+	//	glm::mat4 model_xform = glm::mat4(1);
+	//	model_xform *= mod.GetModelTransform();
+	//	GLuint model_xform_id = glGetUniformLocation(m_FXAAProgram, "model_xform");
+	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
 
-		for (Mesh& mesh : mod.m_Meshs)
-		{
-			if (mesh.tex)
-			{
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, mesh.tex);
-				glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
-			}
-			else
-			{
-				glBindTexture(GL_TEXTURE_2D, 0);
-			}
+	//	for (Mesh& mesh : mod.m_Meshs)
+	//	{
+	//		if (mesh.tex)
+	//		{
+	//			glActiveTexture(GL_TEXTURE0);
+	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
+	//			glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
+	//		}
+	//		else
+	//		{
+	//			glBindTexture(GL_TEXTURE_2D, 0);
+	//		}
+	//		
+	//		glBindVertexArray(mesh.VAO);
+	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+	//	}
+	//}
 
-			glBindVertexArray(mesh.VAO);
-			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-		}
-	}
+	//glUseProgram(m_DOFProgram);
+
+	//combined_xform = projection_xform * view_xform;
+	//combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
+
+	//glm::vec2 parameters = glm::vec2(2, 2);
+	//GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+	//glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+
+	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
+
+	//for (Model& mod : m_Models)
+	//{
+	//	glm::mat4 model_xform = glm::mat4(1);
+	//	model_xform *= mod.GetModelTransform();
+	//	GLuint model_xform_id = glGetUniformLocation(m_DOFProgram, "model_xform");
+	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
+
+	//	for (Mesh& mesh : mod.m_Meshs)
+	//	{
+	//		if (mesh.tex)
+	//		{
+	//			glActiveTexture(GL_TEXTURE0);
+	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
+	//			glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
+	//		}
+	//		else
+	//		{
+	//			glBindTexture(GL_TEXTURE_2D, 0);
+	//		}
+
+	//		glBindVertexArray(mesh.VAO);
+	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
+	//	}
+	//}
 
 	// Bind the default framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -713,7 +726,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDisable(GL_CULL_FACE);
 	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
-
+	
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
 }
