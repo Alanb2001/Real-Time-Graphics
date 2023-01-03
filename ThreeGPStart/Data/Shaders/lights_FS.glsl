@@ -61,5 +61,4 @@ void main(void)
     }
 
     fragment_colour = vec4(result, 1.0);
-
 }

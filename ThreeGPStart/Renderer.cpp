@@ -271,8 +271,8 @@ GLuint RBO;
 
 void Renderer::CreateFrameBuffer()
 {
-	glUseProgram(m_FrameBufferProgram);
-	glUniform1i(glGetUniformLocation(m_FrameBufferProgram, "screenTexture"), 0);
+	glUseProgram(m_FXAAProgram);
+	glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
 
 	glGenVertexArrays(1, &rectVAO);
 	glGenBuffers(1, &rectVBO);
@@ -449,7 +449,7 @@ bool Renderer::InitialiseGeometry()
 		return false;
 	}
 	
-	CreateFrameBuffer();
+	//CreateFrameBuffer();
 
 	CreateTerrain(3000);
 
@@ -479,14 +479,14 @@ bool Renderer::InitialiseGeometry()
 // Render the scene. Passed the delta time since last called.
 void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 {
-	// Bind the custom framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	// Specify the color of the background
-	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-	// Clean the back buffer and depth buffer
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
-	glEnable(GL_DEPTH_TEST);
+	//// Bind the custom framebuffer
+	//glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	//// Specify the color of the background
+	//glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+	//// Clean the back buffer and depth buffer
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//// Enable depth testing since it's disabled when drawing the framebuffer rectangle
+	//glEnable(GL_DEPTH_TEST);
 
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -504,6 +504,18 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLint viewportSize[4];
 	glGetIntegerv(GL_VIEWPORT, viewportSize);
 	const float aspect_ratio = viewportSize[2] / (float)viewportSize[3];
+
+	//static int i = 0;
+	//int n = 10;
+	//float aperture = 0.05f;
+
+	//glm::vec3 right = glm::normalize(glm::cross(camera.GetPosition(), camera.GetUpVector()));
+	//glm::vec3 p_up = glm::normalize(glm::cross(camera.GetPosition(), camera.GetRightVector()));
+
+	//glm::vec3 bokeh = glm::vec3(0.0f, cosf(i * 2.0f * 3.14159f / n),0.0f) + camera.GetRightVector() * sinf(i * 2.0f * 3.14159f / n);
+	//
+	//bokeh *= 0.05f;
+
 	glm::mat4 projection_xform = glm::perspective(glm::radians(45.0f), aspect_ratio, 1.0f, 6000.0f);
 	glm::mat4 view_xform = glm::lookAt(camera.GetPosition(), camera.GetPosition() + camera.GetLookVector(), camera.GetUpVector());
 	glm::mat4 combined_xform = projection_xform * view_xform;
@@ -517,11 +529,13 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDepthFunc(GL_LEQUAL);
 	glDisable(GL_BLEND);
 
-	glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-
-	GLuint camera_position_id = glGetUniformLocation(m_program, "camera_position");
 	glm::vec3 camera_position = camera.GetPosition();
+	GLuint camera_position_id = glGetUniformLocation(m_program, "camera_position");
 	glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
+
+	//view_xform = glm::lookAt(camera.GetPosition() + bokeh, camera.GetPosition() + camera.GetLookVector() * aperture , camera.GetUpVector());
+
+	//glAccum(i ? GL_ACCUM : GL_LOAD, 1.0f / n);
 
 	for (Model& mod : m_Models)
 	{
@@ -529,14 +543,14 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		model_xform *= mod.GetModelTransform();
 		GLuint model_xform_id = glGetUniformLocation(m_program, "model_xform");
 		glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-		
+
 		for (Mesh& mesh : mod.m_Meshs)
 		{
 			if (mesh.tex)
 			{
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, mesh.tex);
-				glUniform1i(glGetUniformLocation(m_program, "sampler_tex"), 0);
+				glUniform1i(glGetUniformLocation(m_program, "sampler_tex"), 0); 
 			}
 			else
 			{
@@ -547,6 +561,8 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 			glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
 		}
 	}
+
+	//glAccum(GL_RETURN, 1);
 
 	glUseProgram(m_lightProgram);
 	
@@ -608,17 +624,11 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		}
 	};
 
-	//int n = 10;
-	//float aperture = 0.05f;
-
-	//glm::vec3 right = glm::normalize(glm::cross(camera_position, camera.GetUpVector()));
-	//glm::vec3 p_up = glm::normalize(glm::cross(camera_position, camera.GetRightVector()));
-
-	//for (int i = 0; i < n; i++)
+	//i++;
+	//if (i >= n)
 	//{
-	//	glm::vec3 bokeh = right * cosf(i * 2 * 3.14159f / n) + p_up * sinf(i * 2 * 3.14159f / n);
-
-	//	glAccum(i ? GL_ACCUM : GL_LOAD, 1.0 / n);
+	//	glAccum(GL_RETURN, 1);
+	//	i = 0;
 	//}
 
 	//glUseProgram(m_FXAAProgram);
@@ -626,11 +636,11 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	//combined_xform = projection_xform * view_xform;
 	//combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
 
-	//glm::vec2 texelStep = glm::vec2(0, 0);
+	//glm::vec2 texelStep = glm::vec2(10, 10);
 	//GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
 	//glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
 
-	//GLuint showEdges = 0;
+	//GLuint showEdges = 1;
 	//GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
 	//glUniform1i(showEdgesID, showEdges);
 
@@ -653,9 +663,9 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	//GLfloat maxSpan = 8.0f;
 	//GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
 	//glUniform1f(maxSpanID, maxSpan);
-	//
-	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-	//
+	
+	/*glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));*/
+	
 	//for (Model& mod : m_Models)
 	//{
 	//	glm::mat4 model_xform = glm::mat4(1);
@@ -717,15 +727,15 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	//	}
 	//}
 
-	// Bind the default framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	// Draw the framebuffer rectangle
-	glUseProgram(m_FrameBufferProgram);
-	glBindVertexArray(rectVAO);
-	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
-	glDisable(GL_CULL_FACE);
-	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	//// Bind the default framebuffer
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//// Draw the framebuffer rectangle
+	//glUseProgram(m_FXAAProgram);
+	//glBindVertexArray(rectVAO);
+	//glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+	//glDisable(GL_CULL_FACE);
+	//glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+	//glDrawArrays(GL_TRIANGLES, 0, 6);
 	
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
