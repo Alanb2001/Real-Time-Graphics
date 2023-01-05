@@ -46,6 +46,8 @@ private:
 	
 	bool m_wireframe{ false };
 
+	bool m_FXAA{ false };
+
 	bool CreateProgram();
 public:
 	Renderer();

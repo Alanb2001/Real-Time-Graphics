@@ -33,6 +33,8 @@ void Renderer::DefineGUI()
 
 		ImGui::Checkbox("Wireframe", &m_wireframe);	// A checkbox linked to a member variable
 
+		ImGui::Checkbox("FXAA",	&m_FXAA);
+
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 		ImGui::End();
@@ -484,9 +486,9 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	// Bind the custom framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 	// Specify the color of the background
-	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	// Clean the back buffer and depth buffer
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearDepth(1.0f);
 	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -496,9 +498,13 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 
 	// Wireframe mode controlled by ImGui
 	if (m_wireframe)
+	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
 	else
+	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
 
 	// Clear buffers from previous frame
 	glClearColor(0.0f, 0.0f, 0.0f, 0.f);
@@ -525,12 +531,6 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLuint combined_xform_id = glGetUniformLocation(m_program, "combined_xform");
 
 	glUseProgram(m_program);
-	// Configure pipeline settings
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glDepthMask(GL_TRUE);
-	glDepthFunc(GL_LEQUAL);
-	glDisable(GL_BLEND);
 
 	glm::vec3 camera_position = camera.GetPosition();
 	GLuint camera_position_id = glGetUniformLocation(m_program, "camera_position");
@@ -636,63 +636,42 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 
 	glUseProgram(m_FXAAProgram);
 
-	//combined_xform = projection_xform * view_xform;
-	//combined_xform_id = glGetUniformLocation(m_FXAAProgram, "combined_xform");
-
 	glm::vec2 texelStep = glm::vec2(1.0f / 1280, 1.0f / 720);
 	GLuint texelStepID = glGetUniformLocation(m_FXAAProgram, "u_texelStep");
 	glUniform2fv(texelStepID, 1, glm::value_ptr(texelStep));
 
-	GLuint showEdges = 1;
+	GLuint showEdges = 0;
 	GLuint showEdgesID = glGetUniformLocation(m_FXAAProgram, "u_showEdges");
 	glUniform1i(showEdgesID, showEdges);
 
-	GLuint fxaaOn = 1;
-	GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
-	glUniform1i(fxaaOnID, fxaaOn);
-
+	if (m_FXAA)
+	{
+		GLuint fxaaOn = 1;
+		GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
+		glUniform1i(fxaaOnID, fxaaOn);
+	}
+	else
+	{
+		GLuint fxaaOn = 0;
+		GLuint fxaaOnID = glGetUniformLocation(m_FXAAProgram, "u_fxaaOn");
+		glUniform1i(fxaaOnID, fxaaOn);
+	}
+	
 	GLfloat lumaThreshold = 0.5f;
 	GLuint lumaThresholdID = glGetUniformLocation(m_FXAAProgram, "u_lumaThreshold");
 	glUniform1f(lumaThresholdID, lumaThreshold);
 
-	GLfloat mulReduce = 8.0f;
+	GLfloat mulReduce = 1.0f / 8.0f;
 	GLuint mulReduceID = glGetUniformLocation(m_FXAAProgram, "u_mulReduce");
 	glUniform1f(mulReduceID, mulReduce);
 	
-	GLfloat minReduce = 128.0f;
+	GLfloat minReduce = 1.0f / 128.0f;
 	GLuint minReduceID = glGetUniformLocation(m_FXAAProgram, "u_minReduce");
 	glUniform1f(minReduceID, minReduce);
 
 	GLfloat maxSpan = 8.0f;
 	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
 	glUniform1f(maxSpanID, maxSpan);
-	
-	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-	
-	//for (Model& mod : m_Models)
-	//{
-	//	glm::mat4 model_xform = glm::mat4(1);
-	//	model_xform *= mod.GetModelTransform();
-	//	GLuint model_xform_id = glGetUniformLocation(m_FXAAProgram, "model_xform");
-	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-
-	//	for (Mesh& mesh : mod.m_Meshs)
-	//	{
-	//		if (mesh.tex)
-	//		{
-	//			glActiveTexture(GL_TEXTURE0);
-	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
-	//			glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
-	//		}
-	//		else
-	//		{
-	//			glBindTexture(GL_TEXTURE_2D, 0);
-	//		}
-	//		
-	//		glBindVertexArray(mesh.VAO);
-	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-	//	}
-	//}
 
 	//glUseProgram(m_DOFProgram);
 
@@ -738,7 +717,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
 	glDisable(GL_CULL_FACE);
 	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
