@@ -57,8 +57,7 @@ public:
 	void DefineGUI();
 
 	void CreateTerrain(int size);
-	void CreateFXAAFrameBuffer();
-	void CreateDOFFrameBuffer();
+	void CreateFrameBuffer();
 
 	// Create and / or load geometry, this is like 'level load'
 	bool InitialiseGeometry();
