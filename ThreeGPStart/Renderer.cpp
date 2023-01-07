@@ -19,6 +19,9 @@ Renderer::~Renderer()
 	}
 	// TODO: clean up any memory used including OpenGL objects via glDelete* calls
 	glDeleteProgram(m_program);
+	glDeleteProgram(m_lightProgram);
+	glDeleteProgram(m_FXAAProgram);
+	glDeleteProgram(m_DOFProgram);
 }
 
 // Use IMGUI for a simple on screen GUI
@@ -34,6 +37,8 @@ void Renderer::DefineGUI()
 		ImGui::Checkbox("Wireframe", &m_wireframe);	// A checkbox linked to a member variable
 
 		ImGui::Checkbox("FXAA",	&m_FXAA);
+
+		ImGui::Checkbox("DOF", &m_DOF);
 
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
@@ -271,7 +276,7 @@ GLuint FBO;
 GLuint rectVAO, rectVBO;
 GLuint RBO;
 
-void Renderer::CreateFrameBuffer()
+void Renderer::CreateFXAAFrameBuffer()
 {
 	glUseProgram(m_FXAAProgram);
 	glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
@@ -307,6 +312,75 @@ void Renderer::CreateFrameBuffer()
 	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
 	{
 		std::cout << "Framebuffer error: " << fboStatus << std::endl;
+	}
+}
+
+float rectangleVertices1[] =
+{
+	// Coords    // texCoords
+	 1.0f, -1.0f,  1.0f, 0.0f,
+	-1.0f, -1.0f,  0.0f, 0.0f,
+	-1.0f,  1.0f,  0.0f, 1.0f,
+
+	 1.0f,  1.0f,  1.0f, 1.0f,
+	 1.0f, -1.0f,  1.0f, 0.0f,
+	-1.0f,  1.0f,  0.0f, 1.0f
+};
+
+GLuint framebufferTexture1;
+GLuint colourTex;
+GLuint tempTex;
+GLuint FBO1;
+GLuint rectVAO1, rectVBO1;
+GLuint RBO1;
+
+void Renderer::CreateDOFFrameBuffer()
+{
+	glUseProgram(m_DOFProgram);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
+
+	glGenVertexArrays(1, &rectVAO1);
+	glGenBuffers(1, &rectVBO1);
+	glBindVertexArray(rectVAO1);
+	glBindBuffer(GL_ARRAY_BUFFER, rectVBO1);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices1), &rectangleVertices1, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+	glGenFramebuffers(1, &FBO1);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO1);
+
+	glGenTextures(1, &framebufferTexture1);
+	glBindTexture(GL_TEXTURE_2D, framebufferTexture1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture1, 0);
+	
+	//glGenTextures(1, &colourTex);
+	//glBindTexture(GL_TEXTURE_2D, colourTex);
+	//glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 2048, 2048);
+
+	//glGenTextures(1, &tempTex);
+	//glBindTexture(GL_TEXTURE_2D, tempTex);
+	//glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 2048, 2048);
+
+	//glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT , framebufferTexture1, 0);
+	//glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colourTex, 0);
+
+	glGenRenderbuffers(1, &RBO1);
+	glBindRenderbuffer(GL_RENDERBUFFER, RBO1);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 720);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO1);
+
+	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "Framebuffer 1 error: " << fboStatus << std::endl;
 	}
 }
 
@@ -453,7 +527,9 @@ bool Renderer::InitialiseGeometry()
 		return false;
 	}
 	
-	CreateFrameBuffer();
+	CreateFXAAFrameBuffer();
+
+	CreateDOFFrameBuffer();
 
 	CreateTerrain(3000);
 
@@ -492,6 +568,30 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO1);
+	// Specify the color of the background
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+	// Clean the back buffer and depth buffer
+	glClearDepth(1.0f);
+	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+
+	//glBindImageTexture(0, colourTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+	//glBindImageTexture(1, tempTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+	//glEnable(GL_DEPTH_TEST);
+
+	//glDispatchCompute(720, 1, 1);
+
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//glBindImageTexture(0, tempTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+	//glBindImageTexture(1, colourTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+	//
+	//glDispatchCompute(720, 1, 1);
+
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -673,41 +773,20 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
 	glUniform1f(maxSpanID, maxSpan);
 
-	//glUseProgram(m_DOFProgram);
+	glUseProgram(m_DOFProgram);
 
-	//combined_xform = projection_xform * view_xform;
-	//combined_xform_id = glGetUniformLocation(m_DOFProgram, "combined_xform");
-
-	//glm::vec2 parameters = glm::vec2(2, 2);
-	//GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
-	//glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-
-	//glUniformMatrix4fv(combined_xform_id, 1, GL_FALSE, glm::value_ptr(combined_xform));
-
-	//for (Model& mod : m_Models)
-	//{
-	//	glm::mat4 model_xform = glm::mat4(1);
-	//	model_xform *= mod.GetModelTransform();
-	//	GLuint model_xform_id = glGetUniformLocation(m_DOFProgram, "model_xform");
-	//	glUniformMatrix4fv(model_xform_id, 1, GL_FALSE, glm::value_ptr(model_xform));
-
-	//	for (Mesh& mesh : mod.m_Meshs)
-	//	{
-	//		if (mesh.tex)
-	//		{
-	//			glActiveTexture(GL_TEXTURE0);
-	//			glBindTexture(GL_TEXTURE_2D, mesh.tex);
-	//			glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
-	//		}
-	//		else
-	//		{
-	//			glBindTexture(GL_TEXTURE_2D, 0);
-	//		}
-
-	//		glBindVertexArray(mesh.VAO);
-	//		glDrawElements(GL_TRIANGLES, mesh.numElements, GL_UNSIGNED_INT, (void*)0);
-	//	}
-	//}
+	if (m_DOF)
+	{
+		glm::vec2 parameters = glm::vec2(2, 2);
+		GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+	}
+	else
+	{
+		glm::vec2 parameters = glm::vec2(0, 0);
+		GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+	}
 
 	// Bind the default framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -718,7 +797,17 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDisable(GL_CULL_FACE);
 	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	
+
+	// Bind the default framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	// Draw the framebuffer rectangle
+	glUseProgram(m_DOFProgram);
+	glBindVertexArray(rectVAO1);
+	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+	glDisable(GL_CULL_FACE);
+	glBindTexture(GL_TEXTURE_2D, framebufferTexture1);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();
 }

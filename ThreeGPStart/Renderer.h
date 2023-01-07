@@ -48,6 +48,8 @@ private:
 
 	bool m_FXAA{ false };
 
+	bool m_DOF{ false };
+
 	bool CreateProgram();
 public:
 	Renderer();
@@ -55,8 +57,9 @@ public:
 	void DefineGUI();
 
 	void CreateTerrain(int size);
-	void CreateFrameBuffer();
-		
+	void CreateFXAAFrameBuffer();
+	void CreateDOFFrameBuffer();
+
 	// Create and / or load geometry, this is like 'level load'
 	bool InitialiseGeometry();
 
