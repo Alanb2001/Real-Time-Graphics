@@ -260,30 +260,20 @@ void Renderer::CreateTerrain(int size)
 }
 
 GLuint framebufferTexture;
+GLuint dofTexture;
 GLuint FBO;
 GLuint rectVAO, rectVBO;
 GLuint RBO;
-
-GLuint colourTex;
-GLuint tempTex;
+GLuint pinpongFBO[2];
+GLuint pinpongBuffer[2];
 
 void Renderer::CreateFrameBuffer()
 {
 	glUseProgram(m_FXAAProgram);
 	glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
 
-	glUseProgram(m_BlurProgram);
-	glUniform1i(glGetUniformLocation(m_BlurProgram, "colorTexture"), 0);
-
-	glUseProgram(m_DOFProgram);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "outOfFocusTexture"), 0);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "positionTexture"), 0);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "focusTexture"), 0);
-
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-
-	Helpers::CheckForGLError();
 
 	glGenTextures(1, &framebufferTexture);
 	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
@@ -306,6 +296,66 @@ void Renderer::CreateFrameBuffer()
 	}
 }
 
+void Renderer::CreateFrameBufferMultipleTextures()
+{
+	glUseProgram(m_BlurProgram);
+	glUniform1i(glGetUniformLocation(m_BlurProgram, "colorTexture"), 0);
+
+	glUseProgram(m_DOFProgram);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "outOfFocusTexture"), 0);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "positionTexture"), 1);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "focusTexture"), 0);
+
+	glGenFramebuffers(1, &FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+	glGenTextures(1, &framebufferTexture);
+	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
+
+	glGenTextures(1, &dofTexture);
+	glBindTexture(GL_TEXTURE_2D, dofTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, dofTexture, 0);
+
+	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, attachments);
+
+	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "Framebuffer error: " << fboStatus << std::endl;
+	}
+
+	glGenFramebuffers(2, pinpongFBO);
+	glGenTextures(2, pinpongBuffer);
+	for (GLuint i = 0; i < 2; i++)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, pinpongFBO[i]);
+		glBindTexture(GL_TEXTURE_2D, pinpongBuffer[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pinpongBuffer[i], 0);
+
+		fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+		{
+			std::cout << "PingPong Framebuffer error: " << fboStatus << std::endl;
+		}
+	}
+}
 
 // Loads, compiles and links the shaders and creates a program object to host them
 bool Renderer::CreateProgram()
@@ -453,6 +503,8 @@ bool Renderer::InitialiseGeometry()
 	
 	CreateFrameBuffer();
 
+	CreateFrameBufferMultipleTextures();
+
 	CreateTerrain(3000);
 
 	Model jeep("Data\\Models\\Jeep\\jeep.obj", "Data\\Models\\Jeep\\jeep_army.jpg");
@@ -486,7 +538,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	// Specify the color of the background
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	// Clean the back buffer and depth buffer
-	glClearDepth(1.0f);
+	glClearDepth(1.0f);     
 	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -652,11 +704,46 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
 	glUniform1f(maxSpanID, maxSpan);
 
+	glUseProgram(m_BlurProgram);
+	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+	glDisable(GL_CULL_FACE);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	bool firstIteration = true, blur = true;
+	for (GLuint i = 0; i < 2; i++)
+	{
+		if (firstIteration)
+		{
+			glBindTexture(GL_TEXTURE_2D, dofTexture);
+			firstIteration = false;
+		}
+		else
+		{
+			glBindTexture(GL_TEXTURE_2D, pinpongBuffer[!blur]);
+		}
+	}
+
+	if (m_DOF)
+	{
+		glm::vec2 parameters = glm::vec2(2);
+		GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
+		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+	}
+	else
+	{
+		glm::vec2 parameters = glm::vec2(0);
+		GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
+		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
+	}
+
 	// Draw the framebuffer rectangle
 	glUseProgram(m_DOFProgram);
 	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
 	glDisable(GL_CULL_FACE);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, pinpongBuffer[!blur]);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	if (m_DOF)
@@ -679,25 +766,6 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glm::vec2 nearFar = glm::vec2(150, 2000);
 	GLuint nearFarID = glGetUniformLocation(m_DOFProgram, "nearFar");
 	glUniform2fv(nearFarID, 1, glm::value_ptr(nearFar));
-
-	glUseProgram(m_BlurProgram);
-	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
-	glDisable(GL_CULL_FACE);
-	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-	if (m_DOF)
-	{
-		glm::vec2 parameters = glm::vec2(2);
-		GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
-		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-	}
-	else
-	{
-		glm::vec2 parameters = glm::vec2(0);
-		GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
-		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-	}
 
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();

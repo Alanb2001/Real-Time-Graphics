@@ -58,7 +58,8 @@ public:
 
 	void CreateTerrain(int size);
 	void CreateFrameBuffer();
-
+	void CreateFrameBufferMultipleTextures();
+	
 	// Create and / or load geometry, this is like 'level load'
 	bool InitialiseGeometry();
 
