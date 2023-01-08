@@ -272,11 +272,18 @@ void Renderer::CreateFrameBuffer()
 	glUseProgram(m_FXAAProgram);
 	glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
 
+	glUseProgram(m_BlurProgram);
+	glUniform1i(glGetUniformLocation(m_BlurProgram, "colorTexture"), 0);
+
 	glUseProgram(m_DOFProgram);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "sampler_tex"), 0);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "outOfFocusTexture"), 0);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "positionTexture"), 0);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "focusTexture"), 0);
 
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+	Helpers::CheckForGLError();
 
 	glGenTextures(1, &framebufferTexture);
 	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
@@ -286,17 +293,6 @@ void Renderer::CreateFrameBuffer()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
-
-	////glGenTextures(1, &colourTex);
-	////glBindTexture(GL_TEXTURE_2D, colourTex);
-	////glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 2048, 2048);
-
-	////glGenTextures(1, &tempTex);
-	////glBindTexture(GL_TEXTURE_2D, tempTex);
-	////glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 2048, 2048);
-
-	////glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT , framebufferTexture1, 0);
-	////glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colourTex, 0);
 
 	glGenRenderbuffers(1, &RBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
@@ -418,28 +414,29 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_DOFProgram))
 		return false;
 
-	m_FrameBufferProgram = glCreateProgram();
+	m_BlurProgram = glCreateProgram();
 
-	GLuint FB_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/FrameBuffer_VS.glsl") };
-	GLuint FB_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/FrameBuffer_FS.glsl") };
-	if (FB_VS == 0 || FB_FS == 0)
+	// Loads and creates vertex and fragment shaders
+	GLuint Blur_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/Blur_VS.glsl") };
+	GLuint Blur_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/Blur_FS.glsl") };
+	if (Blur_VS == 0 || Blur_FS == 0)
 		return false;
 
 	// Attach the vertex shader to this program (copies it)
-	glAttachShader(m_FrameBufferProgram, FB_VS);
+	glAttachShader(m_BlurProgram, Blur_VS);
 
 	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
 	// Not needed if you use (location=0) in the vertex shader itself
 
 	// Attach the fragment shader (copies it)
-	glAttachShader(m_FrameBufferProgram, FB_FS);
+	glAttachShader(m_BlurProgram, Blur_FS);
 
 	// Done with the originals of these as we have made copies
-	glDeleteShader(FB_VS);
-	glDeleteShader(FB_FS);
+	glDeleteShader(Blur_VS);
+	glDeleteShader(Blur_FS);
 
 	// Link the shaders, checking for errors
-	if (!Helpers::LinkProgramShaders(m_FrameBufferProgram))
+	if (!Helpers::LinkProgramShaders(m_BlurProgram))
 		return false;
 
 	return !Helpers::CheckForGLError();
@@ -507,8 +504,7 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 	
-	// Clear buffers from previous frame
-	glClearColor(0.0f, 0.0f, 0.0f, 0.f);
+	// Clear buffers from previous frame;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	GLint viewportSize[4];
@@ -665,14 +661,41 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 
 	if (m_DOF)
 	{
+		glm::vec2 enabled = glm::vec2(1);
+		GLuint enabledID = glGetUniformLocation(m_DOFProgram, "enabled");
+		glUniform2fv(enabledID, 1, glm::value_ptr(enabled));
+	}
+	else
+	{
+		glm::vec2 enabled = glm::vec2(0);
+		GLuint enabledID = glGetUniformLocation(m_DOFProgram, "enabled");
+		glUniform2fv(enabledID, 1, glm::value_ptr(enabled));
+	}
+
+	glm::vec2 mouseFocusPoint = glm::vec2(1.0f / 1280, 1.0f / 720);
+	GLuint mouseFocusPointID = glGetUniformLocation(m_DOFProgram, "mouseFocusPoint");
+	glUniform2fv(mouseFocusPointID, 1, glm::value_ptr(mouseFocusPoint));
+	
+	glm::vec2 nearFar = glm::vec2(150, 2000);
+	GLuint nearFarID = glGetUniformLocation(m_DOFProgram, "nearFar");
+	glUniform2fv(nearFarID, 1, glm::value_ptr(nearFar));
+
+	glUseProgram(m_BlurProgram);
+	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+	glDisable(GL_CULL_FACE);
+	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	if (m_DOF)
+	{
 		glm::vec2 parameters = glm::vec2(2);
-		GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+		GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
 		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
 	}
 	else
 	{
 		glm::vec2 parameters = glm::vec2(0);
-		GLuint parametersID = glGetUniformLocation(m_DOFProgram, "parameters");
+		GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
 		glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
 	}
 

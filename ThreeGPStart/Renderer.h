@@ -37,7 +37,7 @@ private:
 
 	GLuint m_DOFProgram{ 0 };
 
-	GLuint m_FrameBufferProgram{ 0 };
+	GLuint m_BlurProgram{ 0 };
 
 	std::vector<Model> m_Models;
 

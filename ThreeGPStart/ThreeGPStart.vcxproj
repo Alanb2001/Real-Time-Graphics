@@ -130,11 +130,11 @@
     <Natvis Include="External\IMGUI\imgui.natvis" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Data\Shaders\Blur_FS.glsl" />
+    <None Include="Data\Shaders\Blur_VS.glsl" />
     <None Include="Data\Shaders\DOF_FS.glsl" />
     <None Include="Data\Shaders\DOF_VS.glsl" />
     <None Include="Data\Shaders\fragment_shader.glsl" />
-    <None Include="Data\Shaders\FrameBuffer_FS.glsl" />
-    <None Include="Data\Shaders\FrameBuffer_VS.glsl" />
     <None Include="Data\Shaders\FXAA_FS.glsl" />
     <None Include="Data\Shaders\FXAA_VS.glsl" />
     <None Include="Data\Shaders\lights_FS.glsl" />
