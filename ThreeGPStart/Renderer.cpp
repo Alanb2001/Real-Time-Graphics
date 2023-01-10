@@ -40,6 +40,22 @@ void Renderer::DefineGUI()
 
 		ImGui::Checkbox("DOF", &m_DOF);
 
+		ImGui::InputScalar("Focus", ImGuiDataType_Float, &focus, &focusStep, &focusStep, "%.6f");
+
+		ImGui::InputScalar("Aperture", ImGuiDataType_Float, &aperture, &apertureStep, &apertureStep, "%.6f");
+		
+		ImGui::InputScalar("FocalLength", ImGuiDataType_Float, &focalLength, &focalLengthStep, &focalLengthStep, "%.6f");
+	
+		ImGui::InputScalar("Iterations", ImGuiDataType_S32, &iterations, &iterationsStep, &iterationsStep, "%d");
+		
+		ImGui::InputScalar("ApertureBlades", ImGuiDataType_S32, &apertureBlades, &apertureBladesStep, &apertureBladesStep, "%d");
+
+		ImGui::InputScalar("BokehSqueeze", ImGuiDataType_Float, &bokehSqueeze, &bokehSqueezeStep, &bokehSqueezeStep, "%.6f");
+		
+		ImGui::InputScalar("BokehSqueezeFalloff", ImGuiDataType_Float, &bokehSqueezeFalloff, &bokehSqueezeFalloffStep, &bokehSqueezeFalloffStep, "%.6f");
+
+		ImGui::InputScalar("AspectRatio", ImGuiDataType_Float, &aspectRatio, &aspectRatioStep, &aspectRatioStep, "%.6f");
+
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 		ImGui::End();
@@ -259,15 +275,6 @@ void Renderer::CreateTerrain(int size)
 	Helpers::CheckForGLError();
 }
 
-GLuint framebufferTexture;
-GLuint dofTexture;
-GLuint focusTexture;
-GLuint FBO;
-GLuint rectVAO, rectVBO;
-GLuint RBO;
-GLuint pingpongFBO[2];
-GLuint pingpongBuffer[2];
-
 void Renderer::CreateFrameBuffer()
 {
 	glUseProgram(m_FXAAProgram);
@@ -299,13 +306,9 @@ void Renderer::CreateFrameBuffer()
 
 void Renderer::CreateFrameBufferMultipleTextures()
 {
-	//glUseProgram(m_BlurProgram);
-	//glUniform1i(glGetUniformLocation(m_BlurProgram, "outOfFocusTexture"), 0);
-
 	glUseProgram(m_DOFProgram);
 	glUniform1i(glGetUniformLocation(m_DOFProgram, "shadedPass"), 0);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "linearDistance"), 1);
-	//glUniform1i(glGetUniformLocation(m_DOFProgram, "positionTexture"), 2);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "linearDistance"), 0);
 
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
@@ -328,21 +331,12 @@ void Renderer::CreateFrameBufferMultipleTextures()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, dofTexture, 0);
 
-	//glGenTextures(1, &focusTexture);
-	//glBindTexture(GL_TEXTURE_2D, focusTexture);
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, focusTexture, 0);
-
 	glGenRenderbuffers(1, &RBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 720);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
-	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
 	glDrawBuffers(2, attachments);
 
 	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -369,6 +363,49 @@ void Renderer::CreateFrameBufferMultipleTextures()
 		{
 			std::cout << "PingPong Framebuffer error: " << fboStatus << std::endl;
 		}
+	}
+}
+
+GLuint shadowMapFBO;
+GLuint shadowMapWidth = 2048, shadowMapHeight = 2048;
+GLuint shadowMap;
+
+void Renderer::CreateShadowMapFrameBuffer()
+{
+	glGenFramebuffers(1, &shadowMapFBO);
+
+	glGenTextures(1, &shadowMap);
+	glBindTexture(GL_TEXTURE_2D, shadowMap);
+	for (GLuint i = 0; i < 6; i++)
+	{
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	}
+	
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	//GLfloat clampColour[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	//glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, clampColour);
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
+
+	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "Shadow Map Framebuffer error: " << fboStatus << std::endl;
 	}
 }
 
@@ -504,6 +541,34 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_BlurProgram))
 		return false;
 
+	m_ShadowMapProgram = glCreateProgram();
+
+	// Loads and creates vertex and fragment shaders
+	GLuint ShadowMap_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/ShadowMap_VS.glsl") };
+	GLuint ShadowMap_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/ShadowMap_FS.glsl") };
+	GLuint ShadowMap_GEOM{ Helpers::LoadAndCompileShader(GL_GEOMETRY_SHADER, "Data/Shaders/ShadowMap_GEOM.glsl") };
+	if (ShadowMap_VS == 0 || ShadowMap_FS == 0 || ShadowMap_GEOM == 0)
+		return false;
+
+	// Attach the vertex shader to this program (copies it)
+	glAttachShader(m_ShadowMapProgram, ShadowMap_VS);
+
+	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
+	// Not needed if you use (location=0) in the vertex shader itself
+
+	// Attach the fragment shader (copies it)
+	glAttachShader(m_ShadowMapProgram, ShadowMap_FS);
+	glAttachShader(m_ShadowMapProgram, ShadowMap_GEOM);
+
+	// Done with the originals of these as we have made copies
+	glDeleteShader(ShadowMap_VS);
+	glDeleteShader(ShadowMap_FS);
+	glDeleteShader(ShadowMap_GEOM);
+
+	// Link the shaders, checking for errors
+	if (!Helpers::LinkProgramShaders(m_ShadowMapProgram))
+		return false;
+
 	return !Helpers::CheckForGLError();
 }
 
@@ -519,6 +584,8 @@ bool Renderer::InitialiseGeometry()
 	CreateFrameBuffer();
 
 	CreateFrameBufferMultipleTextures();
+
+	CreateShadowMapFrameBuffer();
 
 	CreateTerrain(3000);
 
@@ -718,117 +785,107 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLfloat maxSpan = 8.0f;
 	GLuint maxSpanID = glGetUniformLocation(m_FXAAProgram, "u_maxSpan");
 	glUniform1f(maxSpanID, maxSpan);
-	
-	//// Bind the default framebuffer
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//// Draw the framebuffer rectangle
-	//glUseProgram(m_BlurProgram);
-	//glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
-	//glDisable(GL_CULL_FACE);
-	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	
-	bool blur = true, firstIteration = true;
-	for (GLuint i = 0; i < 2; i++)
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[blur]);
 
-		if (firstIteration)
-		{
-			glBindTexture(GL_TEXTURE_2D, dofTexture);
-			firstIteration = false;
-		}
-		else
-		{
-			glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!blur]);
-		}
-		
+	if (m_DOF)
+	{
+		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//glUseProgram(m_DOFProgram);
+		//bool blur = true, firstIteration = true;
+		//for (GLuint i = 0; i < 2; i++)
+		//{
+		//	glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[blur]);
+
+		//	if (firstIteration)
+		//	{
+		//		glBindTexture(GL_TEXTURE_2D, dofTexture);
+		//		firstIteration = false;
+		//	}
+		//	else
+		//	{
+		//		glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!blur]);
+		//	}
+
+		//	glDisable(GL_DEPTH_TEST);
+		//	glDisable(GL_CULL_FACE); // prevents framebuffer rectangle from being discarded
+		//	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		//	blur = !blur;
+		//}
+
+		// Bind the default framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		// Draw the framebuffer rectangle
+		glUseProgram(m_DOFProgram);
 		glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
+		glDisable(GL_CULL_FACE);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, dofTexture);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-		blur = !blur;
+		glm::vec2 pixelSize = glm::vec2(1.0f / 1280, 1.0f / 720);
+		GLuint pixelSizeID = glGetUniformLocation(m_DOFProgram, "pixelSize");
+		glUniform2fv(pixelSizeID, 1, glm::value_ptr(pixelSize));
+
+		focus;
+		GLuint focusID = glGetUniformLocation(m_DOFProgram, "focus");
+		glUniform1f(focusID, focus);
+
+		aperture;
+		GLuint apertureID = glGetUniformLocation(m_DOFProgram, "aperture");
+		glUniform1f(apertureID, aperture);
+
+		focalLength;
+		GLuint focalLengthID = glGetUniformLocation(m_DOFProgram, "focalLength");
+		glUniform1f(focalLengthID, focalLength);
+
+		iterations;
+		GLuint iterationsID = glGetUniformLocation(m_DOFProgram, "iterations");
+		glUniform1i(iterationsID, iterations);
+
+		apertureBlades;
+		GLuint apertureBladesID = glGetUniformLocation(m_DOFProgram, "apertureBlades");
+		glUniform1i(apertureBladesID, apertureBlades);
+
+		bokehSqueeze;
+		GLuint bokehSqueezeID = glGetUniformLocation(m_DOFProgram, "bokehSqueeze");
+		glUniform1f(bokehSqueezeID, bokehSqueeze);
+
+		bokehSqueezeFalloff;
+		GLuint bokehSqueezeFalloffID = glGetUniformLocation(m_DOFProgram, "bokehSqueezeFalloff");
+		glUniform1f(bokehSqueezeFalloffID, bokehSqueezeFalloff);
+
+		aspectRatio;
+		GLuint aspectRatioID = glGetUniformLocation(m_DOFProgram, "aspectRatio");
+		glUniform1f(aspectRatioID, aspectRatio);
 	}
-
-	//if (m_DOF)
+	
+	//glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
+	//glm::mat4 shadowTransforms[] =
 	//{
-	//	glm::vec2 parameters = glm::vec2(2);
-	//	GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
-	//	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-	//}
-	//else
-	//{
-	//	glm::vec2 parameters = glm::vec2(0);
-	//	GLuint parametersID = glGetUniformLocation(m_BlurProgram, "parameters");
-	//	glUniform2fv(parametersID, 1, glm::value_ptr(parameters));
-	//}
+	//	shadowProj * glm::lookAt(lightPosition, lightPosition + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+	//	shadowProj * glm::lookAt(lightPosition, lightPosition + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+	//	shadowProj * glm::lookAt(lightPosition, lightPosition + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+	//	shadowProj * glm::lookAt(lightPosition, lightPosition + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)),
+	//	shadowProj * glm::lookAt(lightPosition, lightPosition + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+	//	shadowProj * glm::lookAt(lightPosition, lightPosition + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+	//};
 
-	// Bind the default framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	// Draw the framebuffer rectangle
-	glUseProgram(m_DOFProgram);
-	glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
-	glDisable(GL_CULL_FACE);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!blur]);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	//glUseProgram(m_ShadowMapProgram);
+	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[0]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[0]));
+	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[1]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[1]));
+	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[2]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[2]));
+	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[3]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[3]));
+	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[4]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[4]));
+	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[5]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[5]));
+	//glUniform3fv(glGetUniformLocation(m_ShadowMapProgram, "lightPos"), 1, glm::value_ptr(lightPosition));
+	//glUniform1f(glGetUniformLocation(m_ShadowMapProgram, "far_plane"), 100.0f);
 
-	//if (m_DOF)
-	//{
-	//	glm::vec2 enabled = glm::vec2(1);
-	//	GLuint enabledID = glGetUniformLocation(m_DOFProgram, "enabled");
-	//	glUniform2fv(enabledID, 1, glm::value_ptr(enabled));
-	//}
-	//else
-	//{
-	//	glm::vec2 enabled = glm::vec2(0);
-	//	GLuint enabledID = glGetUniformLocation(m_DOFProgram, "enabled");
-	//	glUniform2fv(enabledID, 1, glm::value_ptr(enabled));
-	//}
-
-	//glm::vec2 mouseFocusPoint = glm::vec2(1.0f / 1280, 1.0f / 720);
-	//GLuint mouseFocusPointID = glGetUniformLocation(m_DOFProgram, "mouseFocusPoint");
-	//glUniform2fv(mouseFocusPointID, 1, glm::value_ptr(mouseFocusPoint));
-	//
-	//glm::vec2 nearFar = glm::vec2(150, 2000);
-	//GLuint nearFarID = glGetUniformLocation(m_DOFProgram, "nearFar");
-	//glUniform2fv(nearFarID, 1, glm::value_ptr(nearFar));
-
-	glm::vec2 pixelSize = glm::vec2(1.0f / 1280, 1.0f / 720);
-	GLuint pixelSizeID = glGetUniformLocation(m_DOFProgram, "pixelSize");
-	glUniform2fv(pixelSizeID, 1, glm::value_ptr(pixelSize));
-	
-	GLfloat focus = 14.0f;
-	GLuint focusID = glGetUniformLocation(m_DOFProgram, "focus");
-	glUniform1f(focusID, focus);
-	
-	float aperture = 1.4f;
-	GLuint apertureID = glGetUniformLocation(m_DOFProgram, "aperture");
-	glUniform1f(apertureID, aperture);
-
-	float focalLength = 0.050f;
-	GLuint focalLengthID = glGetUniformLocation(m_DOFProgram, "focalLength");
-	glUniform1f(focalLengthID, focalLength);
-	
-	int iterations = 64;
-	GLuint iterationsID = glGetUniformLocation(m_DOFProgram, "iterations");
-	glUniform1i(iterationsID, iterations);
-	
-	int apertureBlades = 5;
-	GLuint apertureBladesID = glGetUniformLocation(m_DOFProgram, "apertureBlades");
-	glUniform1i(apertureBladesID, apertureBlades);
-	
-	float bokehSqueeze = 0.0f;
-	GLuint bokehSqueezeID = glGetUniformLocation(m_DOFProgram, "bokehSqueeze");
-	glUniform1f(bokehSqueezeID, bokehSqueeze);
-	
-	float bokehSqueezeFalloff = 1.0f;
-	GLuint bokehSqueezeFalloffID = glGetUniformLocation(m_DOFProgram, "bokehSqueezeFalloff");
-	glUniform1f(bokehSqueezeFalloffID, bokehSqueezeFalloff);
-	
-	float aspectRatio = 1.777f;
-	GLuint aspectRatioID = glGetUniformLocation(m_DOFProgram, "aspectRatio");
-	glUniform1f(aspectRatioID, aspectRatio);
+	//glActiveTexture(GL_TEXTURE + 2);
+	//glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
+	//glUniform1i(glGetUniformLocation(m_ShadowMapProgram, "shadowMap"), 2);
 
 	// Always a good idea, when debugging at least, to check for GL errors each frame
 	Helpers::CheckForGLError();

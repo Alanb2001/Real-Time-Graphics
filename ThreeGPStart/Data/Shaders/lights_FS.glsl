@@ -9,8 +9,10 @@ struct Lights
 #define MAXLIGHTS 3
 
 uniform sampler2D sampler_tex;
+uniform samplerCube shadowMap;
 uniform vec3 camera_position;
 uniform Lights light[MAXLIGHTS];
+uniform float farPlane;
 
 in vec3 varying_position; 
 in vec3 varying_normal;
@@ -42,6 +44,31 @@ vec3 PointLight(Lights light, vec3 normal, vec3 fragPos, vec3 viewDir)
     vec3 rV = reflect(-light_direction, fragment_normal);
     float LR = max(0, dot(camera_direction, rV));
     vec3 specular_colour = material_specular_colour * pow(LR, material_shininess);
+
+    //float shadow = 0.0;
+    //vec3 fragToLight = varying_position - light.light_position;
+    //float currentDepth = length(fragToLight);
+    //float bias = max(0.5f * (1.0f - dot(varying_normal, light_direction)), 0.0005f);
+    //
+    //int sampleRadius = 2;
+    //float offset = 0.02f;
+    //for(int z = -sampleRadius; z <= sampleRadius; z++)
+	//{
+    //    for(int y = -sampleRadius; y <= sampleRadius; y++)
+    //    {
+    //        for(int x = -sampleRadius; x <= sampleRadius; x++)
+	//		{
+    //            float closestDepth = texture(shadowMap, fragToLight + vec3(x, y, z) * offset).r;
+    //            closestDepth *= farPlane;
+    //            if(currentDepth > closestDepth + bias)
+    //            {
+    //                shadow += 1.0f;
+    //            }  
+	//		}
+    //    }
+	//}
+    //
+    //shadow /= pow((sampleRadius * 2 + 1), 3);
 
     vec3 final_colour = light.light_colour * (diffuse_colour + specular_colour) * attenuation;
 
