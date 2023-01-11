@@ -308,7 +308,7 @@ void Renderer::CreateFrameBufferMultipleTextures()
 {
 	glUseProgram(m_DOFProgram);
 	glUniform1i(glGetUniformLocation(m_DOFProgram, "shadedPass"), 0);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "linearDistance"), 0);
+	glUniform1i(glGetUniformLocation(m_DOFProgram, "linearDistance"), 1);
 
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
@@ -366,33 +366,28 @@ void Renderer::CreateFrameBufferMultipleTextures()
 	}
 }
 
-GLuint shadowMapFBO;
-GLuint shadowMapWidth = 2048, shadowMapHeight = 2048;
-GLuint shadowMap;
-
 void Renderer::CreateShadowMapFrameBuffer()
 {
 	glGenFramebuffers(1, &shadowMapFBO);
 
 	glGenTextures(1, &shadowMap);
-	glBindTexture(GL_TEXTURE_2D, shadowMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
 	for (GLuint i = 0; i < 6; i++)
 	{
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 	}
 	
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
+	//glDrawBuffer(GL_NONE);
+	//glReadBuffer(GL_NONE);
+	//glBindBuffer(GL_FRAMEBUFFER, 0);
 	
-	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	//glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -628,6 +623,10 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
+	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+	//glDrawBuffer(GL_NONE);
+	//glReadBuffer(GL_NONE);
+
 	// Wireframe mode controlled by ImGui
 	if (m_wireframe)
 	{
@@ -861,6 +860,8 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		glUniform1f(aspectRatioID, aspectRatio);
 	}
 	
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	//glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
 	//glm::mat4 shadowTransforms[] =
 	//{
@@ -873,7 +874,6 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	//};
 
 	//glUseProgram(m_ShadowMapProgram);
-	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
 	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[0]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[0]));
 	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[1]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[1]));
 	//glUniformMatrix4fv(glGetUniformLocation(m_ShadowMapProgram, "shadowTransforms[2]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[2]));

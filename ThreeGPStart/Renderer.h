@@ -61,6 +61,10 @@ private:
 	GLuint pingpongFBO[2];
 	GLuint pingpongBuffer[2];
 
+	GLuint shadowMapFBO;
+	GLuint shadowMapWidth = 2048, shadowMapHeight = 2048;
+	GLuint shadowMap;
+
 	GLfloat focus = 14.0f;
 	GLfloat focusStep = 0.1f;
 	GLfloat aperture = 1.4f;

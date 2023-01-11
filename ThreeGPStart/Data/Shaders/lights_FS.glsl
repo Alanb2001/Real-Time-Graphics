@@ -69,6 +69,8 @@ vec3 PointLight(Lights light, vec3 normal, vec3 fragPos, vec3 viewDir)
 	//}
     //
     //shadow /= pow((sampleRadius * 2 + 1), 3);
+    //
+    //vec3 final_colour = light.light_colour * (diffuse_colour + specular_colour) * attenuation * (1.0f - shadow);
 
     vec3 final_colour = light.light_colour * (diffuse_colour + specular_colour) * attenuation;
 
