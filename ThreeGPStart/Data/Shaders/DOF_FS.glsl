@@ -32,7 +32,7 @@ void main()
 {
     vec2 uv = varying_coord;
 
-    float centerDepth = texture(shadedPass, varying_coord).r;
+    float centerDepth = texture(shadedPass, varying_coord).a;
     float centerBlur = getBlurSize(centerDepth);
     vec3 color = texture(shadedPass, varying_coord).rgb;
     float steps = 1.0;
