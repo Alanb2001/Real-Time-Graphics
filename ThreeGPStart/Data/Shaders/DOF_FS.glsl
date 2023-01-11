@@ -1,20 +1,19 @@
 #version 330
 
+// Found at: https://github.com/TobiasKozel/OpenGLCameraEffects/blob/master/src/shaders/DOFShaderAdvanced.h
+
 out vec3 FragColor;
 in vec2 varying_coord;
 
 uniform sampler2D shadedPass;
-uniform sampler2D linearDistance;
 uniform vec2 pixelSize; //The size of a pixel: vec2(1.0/width, 1.0/height)
 
 uniform float focus;
+uniform float focusScale;
 uniform float aperture;
 uniform float focalLength;
 uniform int iterations;
 uniform int apertureBlades;
-uniform float bokehSqueeze;
-uniform float bokehSqueezeFalloff;
-uniform float aspectRatio;
 
 const float PI = 3.1415926f;
 
@@ -33,7 +32,7 @@ void main()
 {
     vec2 uv = varying_coord;
 
-    float centerDepth = texture(linearDistance, varying_coord).r;
+    float centerDepth = texture(shadedPass, varying_coord).r;
     float centerBlur = getBlurSize(centerDepth);
     vec3 color = texture(shadedPass, varying_coord).rgb;
     float steps = 1.0;
@@ -49,7 +48,7 @@ void main()
         vec2 offset =    vec2(cos(ang), sin(ang)) * pixelSize * r;
 
         vec3 sampleColor = texture(shadedPass, uv + offset).rgb;
-        float sampleDepth = texture(linearDistance, uv + offset).r;
+        float sampleDepth = texture(shadedPass, uv + offset).r;
         float sampleBlur = getBlurSize(sampleDepth);
         
         if (sampleDepth > centerDepth) 

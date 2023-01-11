@@ -15,6 +15,8 @@ in vec2 varying_coord;
 
 out vec4 fragColor;
 
+// Found at: https://github.com/McNopper/OpenGL/blob/master/Example42/shader/fxaa.frag.glsl
+
 // see FXAA
 // http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
 // http://iryoku.com/aacourse/downloads/09-FXAA-3.11-in-15-Slides.pdf

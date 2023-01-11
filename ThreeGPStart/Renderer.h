@@ -7,24 +7,6 @@
 
 class Model;
 
-struct PerFrameUniforms
-{
-	glm::vec3 light_position;
-	float light_range;
-	glm::vec3 light_direction;
-	glm::vec3 cam_pos;
-	glm::vec3 ambeint_light;
-};
-
-struct PerModelUniforms
-{
-	glm::mat4 projection_xform;
-	glm::mat4 model_xform;
-	glm::mat4 view_xform;
-	glm::vec3 material_colour;
-	float pad1_;
-};
-
 class Renderer
 {
 private:
@@ -43,23 +25,17 @@ private:
 
 	std::vector<Model> m_Models;
 
-	GLuint per_frame_ubo_{ 0 };
-	GLuint per_model_ubo_{ 0 };
-	
 	bool m_wireframe{ false };
 
 	bool m_FXAA{ false };
 
 	bool m_DOF{ false };
 	
-	GLuint framebufferTexture;
+	GLuint framebufferTexture{0};
 	GLuint dofTexture;
 	GLuint focusTexture;
 	GLuint FBO;
-	GLuint rectVAO, rectVBO;
 	GLuint RBO;
-	GLuint pingpongFBO[2];
-	GLuint pingpongBuffer[2];
 
 	GLuint shadowMapFBO;
 	GLuint shadowMapWidth = 2048, shadowMapHeight = 2048;
@@ -75,12 +51,6 @@ private:
 	GLuint iterationsStep = 1;
 	GLuint apertureBlades = 5;
 	GLuint apertureBladesStep = 1;
-	GLfloat bokehSqueeze = 0.0f;
-	GLfloat bokehSqueezeStep = 0.1f;
-	GLfloat bokehSqueezeFalloff = 1.0f;
-	GLfloat bokehSqueezeFalloffStep = 0.1f;
-	GLfloat aspectRatio = 1.777f;
-	GLfloat aspectRatioStep = 0.001f;
 
 	bool CreateProgram();
 public:

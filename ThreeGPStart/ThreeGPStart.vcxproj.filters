@@ -146,12 +146,6 @@
     <None Include="Data\Shaders\DOF_VS.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Data\Shaders\Blur_FS.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Data\Shaders\Blur_VS.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Data\Shaders\ShadowMap_VS.glsl">
       <Filter>Shaders</Filter>
     </None>

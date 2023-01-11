@@ -22,6 +22,7 @@ Renderer::~Renderer()
 	glDeleteProgram(m_lightProgram);
 	glDeleteProgram(m_FXAAProgram);
 	glDeleteProgram(m_DOFProgram);
+	glDeleteProgram(m_ShadowMapProgram);
 }
 
 // Use IMGUI for a simple on screen GUI
@@ -49,12 +50,6 @@ void Renderer::DefineGUI()
 		ImGui::InputScalar("Iterations", ImGuiDataType_S32, &iterations, &iterationsStep, &iterationsStep, "%d");
 		
 		ImGui::InputScalar("ApertureBlades", ImGuiDataType_S32, &apertureBlades, &apertureBladesStep, &apertureBladesStep, "%d");
-
-		ImGui::InputScalar("BokehSqueeze", ImGuiDataType_Float, &bokehSqueeze, &bokehSqueezeStep, &bokehSqueezeStep, "%.6f");
-		
-		ImGui::InputScalar("BokehSqueezeFalloff", ImGuiDataType_Float, &bokehSqueezeFalloff, &bokehSqueezeFalloffStep, &bokehSqueezeFalloffStep, "%.6f");
-
-		ImGui::InputScalar("AspectRatio", ImGuiDataType_Float, &aspectRatio, &aspectRatioStep, &aspectRatioStep, "%.6f");
 
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
@@ -280,35 +275,8 @@ void Renderer::CreateFrameBuffer()
 	glUseProgram(m_FXAAProgram);
 	glUniform1i(glGetUniformLocation(m_FXAAProgram, "sampler_tex"), 0);
 
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-
-	glGenTextures(1, &framebufferTexture);
-	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
-
-	glGenRenderbuffers(1, &RBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 720);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
-
-	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
-	{
-		std::cout << "Framebuffer error: " << fboStatus << std::endl;
-	}
-}
-
-void Renderer::CreateFrameBufferMultipleTextures()
-{
 	glUseProgram(m_DOFProgram);
 	glUniform1i(glGetUniformLocation(m_DOFProgram, "shadedPass"), 0);
-	glUniform1i(glGetUniformLocation(m_DOFProgram, "linearDistance"), 1);
 
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
@@ -322,52 +290,23 @@ void Renderer::CreateFrameBufferMultipleTextures()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
 
-	glGenTextures(1, &dofTexture);
-	glBindTexture(GL_TEXTURE_2D, dofTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, dofTexture, 0);
-
 	glGenRenderbuffers(1, &RBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 720);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
-	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, attachments);
-
 	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
 	{
 		std::cout << "Framebuffer error: " << fboStatus << std::endl;
-	}
-
-	glGenFramebuffers(2, pingpongFBO);
-	glGenTextures(2, pingpongBuffer);
-	for (GLuint i = 0; i < 2; i++)
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
-		glBindTexture(GL_TEXTURE_2D, pingpongBuffer[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 720, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffer[i], 0);
-
-		fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-		if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
-		{
-			std::cout << "PingPong Framebuffer error: " << fboStatus << std::endl;
-		}
 	}
 }
 
 void Renderer::CreateShadowMapFrameBuffer()
 {
+	glUseProgram(m_ShadowMapProgram);
+
+
 	glGenFramebuffers(1, &shadowMapFBO);
 
 	glGenTextures(1, &shadowMap);
@@ -382,20 +321,7 @@ void Renderer::CreateShadowMapFrameBuffer()
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
-	//glDrawBuffer(GL_NONE);
-	//glReadBuffer(GL_NONE);
-	//glBindBuffer(GL_FRAMEBUFFER, 0);
-	
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-	//GLfloat clampColour[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	//glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, clampColour);
-	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
 
 	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
@@ -511,31 +437,6 @@ bool Renderer::CreateProgram()
 	if (!Helpers::LinkProgramShaders(m_DOFProgram))
 		return false;
 
-	m_BlurProgram = glCreateProgram();
-
-	// Loads and creates vertex and fragment shaders
-	GLuint Blur_VS{ Helpers::LoadAndCompileShader(GL_VERTEX_SHADER, "Data/Shaders/Blur_VS.glsl") };
-	GLuint Blur_FS{ Helpers::LoadAndCompileShader(GL_FRAGMENT_SHADER, "Data/Shaders/Blur_FS.glsl") };
-	if (Blur_VS == 0 || Blur_FS == 0)
-		return false;
-
-	// Attach the vertex shader to this program (copies it)
-	glAttachShader(m_BlurProgram, Blur_VS);
-
-	// The attibute 0 maps to the input stream "vertex_position" in the vertex shader
-	// Not needed if you use (location=0) in the vertex shader itself
-
-	// Attach the fragment shader (copies it)
-	glAttachShader(m_BlurProgram, Blur_FS);
-
-	// Done with the originals of these as we have made copies
-	glDeleteShader(Blur_VS);
-	glDeleteShader(Blur_FS);
-
-	// Link the shaders, checking for errors
-	if (!Helpers::LinkProgramShaders(m_BlurProgram))
-		return false;
-
 	m_ShadowMapProgram = glCreateProgram();
 
 	// Loads and creates vertex and fragment shaders
@@ -578,9 +479,7 @@ bool Renderer::InitialiseGeometry()
 	
 	CreateFrameBuffer();
 
-	CreateFrameBufferMultipleTextures();
-
-	CreateShadowMapFrameBuffer();
+	//CreateShadowMapFrameBuffer();
 
 	CreateTerrain(3000);
 
@@ -626,7 +525,8 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
 	//glDrawBuffer(GL_NONE);
 	//glReadBuffer(GL_NONE);
-
+	//glBindBuffer(GL_FRAMEBUFFER, 0);
+	 
 	// Wireframe mode controlled by ImGui
 	if (m_wireframe)
 	{
@@ -649,7 +549,9 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 	GLuint combined_xform_id = glGetUniformLocation(m_program, "combined_xform");
 
 	glUseProgram(m_program);
-
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	
 	glm::vec3 camera_position = camera.GetPosition();
 	GLuint camera_position_id = glGetUniformLocation(m_program, "camera_position");
 	glUniform3fv(camera_position_id, 1, glm::value_ptr(camera_position));
@@ -787,42 +689,15 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 
 	if (m_DOF)
 	{
-		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		//glUseProgram(m_DOFProgram);
-		//bool blur = true, firstIteration = true;
-		//for (GLuint i = 0; i < 2; i++)
-		//{
-		//	glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[blur]);
-
-		//	if (firstIteration)
-		//	{
-		//		glBindTexture(GL_TEXTURE_2D, dofTexture);
-		//		firstIteration = false;
-		//	}
-		//	else
-		//	{
-		//		glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!blur]);
-		//	}
-
-		//	glDisable(GL_DEPTH_TEST);
-		//	glDisable(GL_CULL_FACE); // prevents framebuffer rectangle from being discarded
-		//	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-		//	blur = !blur;
-		//}
-
 		// Bind the default framebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		// Draw the framebuffer rectangle
 		glUseProgram(m_DOFProgram);
 		glDisable(GL_DEPTH_TEST); // prevents framebuffer rectangle from being discarded
 		glDisable(GL_CULL_FACE);
-		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, dofTexture);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+		
 		glm::vec2 pixelSize = glm::vec2(1.0f / 1280, 1.0f / 720);
 		GLuint pixelSizeID = glGetUniformLocation(m_DOFProgram, "pixelSize");
 		glUniform2fv(pixelSizeID, 1, glm::value_ptr(pixelSize));
@@ -846,18 +721,6 @@ void Renderer::Render(const Helpers::Camera& camera, float deltaTime)
 		apertureBlades;
 		GLuint apertureBladesID = glGetUniformLocation(m_DOFProgram, "apertureBlades");
 		glUniform1i(apertureBladesID, apertureBlades);
-
-		bokehSqueeze;
-		GLuint bokehSqueezeID = glGetUniformLocation(m_DOFProgram, "bokehSqueeze");
-		glUniform1f(bokehSqueezeID, bokehSqueeze);
-
-		bokehSqueezeFalloff;
-		GLuint bokehSqueezeFalloffID = glGetUniformLocation(m_DOFProgram, "bokehSqueezeFalloff");
-		glUniform1f(bokehSqueezeFalloffID, bokehSqueezeFalloff);
-
-		aspectRatio;
-		GLuint aspectRatioID = glGetUniformLocation(m_DOFProgram, "aspectRatio");
-		glUniform1f(aspectRatioID, aspectRatio);
 	}
 	
 	//glBindFramebuffer(GL_FRAMEBUFFER, 0);

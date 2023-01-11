@@ -14,7 +14,6 @@ out vec2 varying_coord;
 void main(void)
 {
 	varying_position = mat4x3(model_xform) * vec4(vertex_position, 1.0);
-	//varying_position = vertex_position;
 	varying_normal = mat3(model_xform) * vertex_normal;
 	varying_coord = vertex_texturecoord;
 
